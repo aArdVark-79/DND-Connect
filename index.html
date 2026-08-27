@@ -102,7 +102,7 @@
     padding: 18px 0;
   }
 
-  .filters {
+  .filters-row {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
@@ -141,8 +141,19 @@
     color: var(--ink);
   }
 
+  .filter-toggle-btn {
+    background: var(--card-bg);
+    border: 1px solid var(--ink);
+    border-radius: 3px;
+    padding: 9px 14px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+  .filter-toggle-btn.active { background: var(--gold); color: var(--ink); border-color: var(--ink); }
+
   .add-btn {
-    margin-left: auto;
     background: var(--oxblood);
     color: var(--parchment);
     border: none;
@@ -155,6 +166,24 @@
     transition: background 0.15s ease;
   }
   .add-btn:hover { background: #82303f; }
+  .add-btn.secondary { background: var(--forest); }
+
+  .filters-panel {
+    display: none;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 12px;
+    padding-top: 12px;
+    border-top: 1px dashed var(--line);
+  }
+  .filters-panel.open { display: flex; }
+
+  .actions-row {
+    margin-left: auto;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
 
   main { padding: 40px 0 80px; }
 
@@ -184,14 +213,6 @@
   .card:hover {
     transform: translateY(-3px) rotate(-0.3deg);
     box-shadow: 0 10px 18px -8px var(--shadow);
-  }
-
-  .badge {
-    position: absolute;
-    top: -10px;
-    right: 18px;
-    width: 34px;
-    height: 34px;
   }
 
   .card-role {
@@ -271,6 +292,7 @@
     max-height: 90vh;
     overflow-y: auto;
   }
+  .modal.wide { max-width: 620px; }
 
   .modal h2 {
     font-family: 'Spectral SC', serif;
@@ -321,6 +343,68 @@
   .btn-cancel { background: var(--card-bg); color: var(--ink); }
   .btn-submit { background: var(--forest); color: var(--parchment); border-color: var(--forest); }
 
+  .code-display {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 34px;
+    letter-spacing: 0.18em;
+    text-align: center;
+    background: var(--card-bg);
+    border: 2px dashed var(--ink);
+    border-radius: 6px;
+    padding: 20px;
+    margin: 16px 0;
+  }
+
+  .posting-as {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 8px 12px;
+    margin-bottom: 16px;
+  }
+  .posting-as strong { color: var(--ink); letter-spacing: 0.1em; }
+
+  .form-step { display: none; }
+  .form-step.active { display: block; }
+
+  .edit-card {
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 18px;
+  }
+  .status-pill {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 3px 10px;
+    border-radius: 10px;
+    margin-bottom: 10px;
+  }
+  .status-pill.approved { background: var(--forest); color: var(--parchment); }
+  .status-pill.pending { background: var(--gold); color: var(--ink); }
+
+  .edit-card .modal-actions { margin-top: 16px; }
+
+  .missing-role-prompt {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    text-align: center;
+    padding: 16px;
+    border: 1px dashed var(--line);
+    border-radius: 6px;
+    margin-bottom: 18px;
+  }
+  .missing-role-prompt button {
+    margin-top: 10px;
+  }
+
   footer {
     border-top: 1px solid var(--line);
     padding: 24px 0 40px;
@@ -332,8 +416,9 @@
 
   @media (max-width: 640px) {
     .d20 { display: none; }
-    .add-btn { margin-left: 0; width: 100%; text-align: center; }
-    .filters { flex-direction: column; align-items: stretch; }
+    .filters-row { flex-direction: column; align-items: stretch; }
+    .actions-row { margin-left: 0; width: 100%; }
+    .actions-row .add-btn { flex: 1; }
     select, input[type="text"] { width: 100%; }
   }
 </style>
@@ -373,33 +458,44 @@
 </header>
 
 <div class="board">
-  <div class="wrap filters">
-    <div class="role-toggle" id="roleToggle">
-      <button data-role="all" class="active">All</button>
-      <button data-role="dm">GMs</button>
-      <button data-role="player">Players</button>
+  <div class="wrap">
+    <div class="filters-row">
+      <div class="role-toggle" id="roleToggle">
+        <button data-role="all" class="active">All</button>
+        <button data-role="dm">GMs</button>
+        <button data-role="player">Players</button>
+      </div>
+      <button class="filter-toggle-btn" id="filterToggleBtn">Filters ▾</button>
+      <div class="actions-row">
+        <button class="add-btn" id="openPostFlow">+ Post your listing</button>
+        <button class="add-btn secondary" id="openMyListings">My submissions</button>
+      </div>
     </div>
-    <select id="systemFilter">
-      <option value="">Any system</option>
-      <option value="D&D 5e">D&D 5e</option>
-      <option value="Pathfinder 2e">Pathfinder 2e</option>
-      <option value="Call of Cthulhu">Call of Cthulhu</option>
-      <option value="Blades in the Dark">Blades in the Dark</option>
-      <option value="Other">Other</option>
-    </select>
-    <select id="formatFilter">
-      <option value="">Any format</option>
-      <option value="Online">Online</option>
-      <option value="In-person">In-person</option>
-    </select>
-    <select id="expFilter">
-      <option value="">Any experience</option>
-      <option value="New">New</option>
-      <option value="Some experience">Some experience</option>
-      <option value="Veteran">Veteran</option>
-    </select>
-    <button class="add-btn" id="openModal">+ Post your listing</button>
-    <button class="add-btn" id="openMyListings" style="background: var(--forest);">My submissions</button>
+    <div class="filters-panel" id="filtersPanel">
+      <select id="systemFilter">
+        <option value="">Any system</option>
+        <option value="D&D 5e">D&D 5e</option>
+        <option value="Pathfinder 2e">Pathfinder 2e</option>
+        <option value="Call of Cthulhu">Call of Cthulhu</option>
+        <option value="Blades in the Dark">Blades in the Dark</option>
+        <option value="Other">Other</option>
+      </select>
+      <select id="formatFilter">
+        <option value="">Any format</option>
+        <option value="Online">Online</option>
+        <option value="In-person">In-person</option>
+      </select>
+      <select id="expFilter">
+        <option value="">Any experience</option>
+        <option value="New">New</option>
+        <option value="Some experience">Some experience</option>
+        <option value="Veteran">Veteran</option>
+      </select>
+      <select id="sortOrder">
+        <option value="recent">Most recent</option>
+        <option value="alpha">Alphabetical (A–Z)</option>
+      </select>
+    </div>
   </div>
 </div>
 
@@ -414,85 +510,121 @@
 </footer>
 </div>
 
-<div class="modal-overlay" id="modalOverlay">
+<!-- Post a listing: 3-step flow (enter/generate ID -> show new ID -> fill in listing) -->
+<div class="modal-overlay" id="postOverlay">
   <div class="modal">
-    <h2>Post your listing</h2>
-    <p class="note">Your listing is reviewed before it appears on the board — usually within a day or two.</p>
-    <form id="listingForm">
+
+    <div class="form-step active" id="stepCode">
+      <h2>Get your ID</h2>
+      <p class="note">Your ID links your listings together so you can find and edit them later. Already have one? Enter it below. Otherwise, leave it blank to get a new one.</p>
       <div class="field">
-        <label>I am a...</label>
-        <select id="f_role">
-          <option value="dm">Game Master</option>
-          <option value="player">Player</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Name / handle</label>
-        <input type="text" id="f_name" required>
-      </div>
-      <div class="field">
-        <label>Game system</label>
-        <select id="f_system">
-          <option value="">Select a system...</option>
-          <option value="D&D 5e">D&D 5e</option>
-          <option value="Pathfinder 2e">Pathfinder 2e</option>
-          <option value="Call of Cthulhu">Call of Cthulhu</option>
-          <option value="Blades in the Dark">Blades in the Dark</option>
-          <option value="Other">Other</option>
-        </select>
-      </div>
-      <div class="field" id="f_system_other_wrap" style="display:none;">
-        <label>Name the system</label>
-        <input type="text" id="f_system_other" placeholder="e.g. Kids on Bikes" disabled>
-      </div>
-      <div class="field">
-        <label>Format</label>
-        <select id="f_format">
-          <option>Online</option>
-          <option>In-person</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Experience level</label>
-        <select id="f_exp">
-          <option>New</option>
-          <option>Some experience</option>
-          <option>Veteran</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Schedule</label>
-        <input type="text" id="f_schedule" placeholder="Weeknights, Sunday afternoons...">
-      </div>
-      <div class="field">
-        <label>Short bio</label>
-        <textarea id="f_bio" placeholder="Tell people a bit about your table or what you're looking for."></textarea>
-      </div>
-      <div class="field">
-        <label>How can people reach you?</label>
-        <input type="text" id="f_contact" placeholder="Discord: yourname, or an email address" required>
-        <p class="note" style="margin-top:6px; margin-bottom:0;">Shown publicly once approved. There's no messaging on this site — only share what you're comfortable posting.</p>
+        <label>Your ID (optional)</label>
+        <input type="text" id="codeInput" placeholder="e.g. 482XYZ" maxlength="6" style="text-transform:uppercase;">
       </div>
       <div class="modal-actions">
-        <button type="button" class="btn-cancel" id="cancelModal">Cancel</button>
-        <button type="submit" class="btn-submit">Add to board</button>
+        <button type="button" class="btn-cancel" id="cancelStepCode">Cancel</button>
+        <button type="button" class="btn-submit" id="continueStepCode">Continue</button>
       </div>
-    </form>
+    </div>
+
+    <div class="form-step" id="stepNewCode">
+      <h2>Your new ID</h2>
+      <p class="note">Save this somewhere safe — it's the only way to find or edit your listings later. There are no accounts or passwords, just this code.</p>
+      <div class="code-display" id="generatedCodeDisplay">------</div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="backFromNewCode">Back</button>
+        <button type="button" class="btn-submit" id="continueFromNewCode">I've saved it — continue</button>
+      </div>
+    </div>
+
+    <div class="form-step" id="stepDetails">
+      <h2>Post your listing</h2>
+      <p class="posting-as">Posting under ID: <strong id="postingAsCode">------</strong></p>
+      <p class="note">Your listing is reviewed before it appears on the board — usually within a day or two.</p>
+      <form id="listingForm">
+        <div class="field">
+          <label>I am a...</label>
+          <select id="f_role">
+            <option value="dm">Game Master</option>
+            <option value="player">Player</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Name / handle</label>
+          <input type="text" id="f_name" required>
+        </div>
+        <div class="field">
+          <label>Game system</label>
+          <select id="f_system">
+            <option value="">Select a system...</option>
+            <option value="D&D 5e">D&D 5e</option>
+            <option value="Pathfinder 2e">Pathfinder 2e</option>
+            <option value="Call of Cthulhu">Call of Cthulhu</option>
+            <option value="Blades in the Dark">Blades in the Dark</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div class="field" id="f_system_other_wrap" style="display:none;">
+          <label>Name the system</label>
+          <input type="text" id="f_system_other" placeholder="e.g. Kids on Bikes" disabled>
+        </div>
+        <div class="field">
+          <label>Format</label>
+          <select id="f_format">
+            <option>Online</option>
+            <option>In-person</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Experience level</label>
+          <select id="f_exp">
+            <option>New</option>
+            <option>Some experience</option>
+            <option>Veteran</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Schedule</label>
+          <input type="text" id="f_schedule" placeholder="Weeknights, Sunday afternoons...">
+        </div>
+        <div class="field">
+          <label>Short bio</label>
+          <textarea id="f_bio" placeholder="Tell people a bit about your table or what you're looking for."></textarea>
+        </div>
+        <div class="field">
+          <label>How can people reach you?</label>
+          <input type="text" id="f_contact" placeholder="Discord: yourname, or an email address" required>
+          <p class="note" style="margin-top:6px; margin-bottom:0;">Shown publicly once approved. There's no messaging on this site — only share what you're comfortable posting.</p>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn-cancel" id="cancelStepDetails">Cancel</button>
+          <button type="submit" class="btn-submit">Add to board</button>
+        </div>
+      </form>
+    </div>
+
   </div>
 </div>
 
+<!-- My submissions: enter ID, view/edit listings -->
 <div class="modal-overlay" id="myListingsOverlay">
-  <div class="modal">
+  <div class="modal wide">
     <h2>My submissions</h2>
-    <p class="note">Listings you've submitted from this browser.</p>
-    <div id="myListingsBody"></div>
+    <p class="note">Enter your ID to find and edit your listings.</p>
+    <div class="field">
+      <label>Your ID</label>
+      <input type="text" id="lookupCodeInput" placeholder="e.g. 482XYZ" maxlength="6" style="text-transform:uppercase;">
+    </div>
     <div class="modal-actions">
       <button type="button" class="btn-cancel" id="closeMyListings">Close</button>
+      <button type="button" class="btn-submit" id="lookupCodeBtn">Find my listings</button>
     </div>
+    <div id="myListingsBody" style="margin-top:20px;"></div>
   </div>
 </div>
 
 <script type="module">
+  // ============ BOARD: filters, sorting, rendering ============
   let listings = [];
 
   const grid = document.getElementById('grid');
@@ -502,9 +634,10 @@
   const systemFilter = document.getElementById('systemFilter');
   const formatFilter = document.getElementById('formatFilter');
   const expFilter = document.getElementById('expFilter');
+  const sortOrder = document.getElementById('sortOrder');
+  const KNOWN_SYSTEMS = ['D&D 5e', 'Pathfinder 2e', 'Call of Cthulhu', 'Blades in the Dark'];
 
   let activeRole = 'all';
-  const KNOWN_SYSTEMS = ['D&D 5e', 'Pathfinder 2e', 'Call of Cthulhu', 'Blades in the Dark'];
 
   async function loadListings() {
     const { data, error } = await window.supabase
@@ -526,7 +659,7 @@
     const fmt = formatFilter.value;
     const exp = expFilter.value;
 
-    const filtered = listings.filter(l => {
+    let filtered = listings.filter(l => {
       if (activeRole !== 'all' && l.role !== activeRole) return false;
       if (sys === 'Other') {
         if (KNOWN_SYSTEMS.includes(l.system)) return false;
@@ -537,6 +670,12 @@
       if (exp && l.exp !== exp) return false;
       return true;
     });
+
+    if (sortOrder.value === 'alpha') {
+      filtered = filtered.slice().sort((a, b) => a.name.localeCompare(b.name));
+    } else {
+      filtered = filtered.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
+    }
 
     countLine.textContent = filtered.length + (filtered.length === 1 ? ' listing on the board' : ' listings on the board');
     grid.innerHTML = '';
@@ -576,15 +715,73 @@
     render();
   });
 
-  [systemFilter, formatFilter, expFilter].forEach(el => el.addEventListener('change', render));
+  [systemFilter, formatFilter, expFilter, sortOrder].forEach(el => el.addEventListener('change', render));
 
-  const overlay = document.getElementById('modalOverlay');
-  document.getElementById('openModal').addEventListener('click', () => overlay.classList.add('open'));
-  document.getElementById('cancelModal').addEventListener('click', () => overlay.classList.remove('open'));
-  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
+  const filterToggleBtn = document.getElementById('filterToggleBtn');
+  const filtersPanel = document.getElementById('filtersPanel');
+  filterToggleBtn.addEventListener('click', () => {
+    const isOpen = filtersPanel.classList.toggle('open');
+    filterToggleBtn.classList.toggle('active', isOpen);
+    filterToggleBtn.textContent = isOpen ? 'Filters ▴' : 'Filters ▾';
+  });
 
-  // Only unlock the write-in system box once "Other" is actually selected --
-  // otherwise it stays disabled so it can't be typed into or submitted.
+  // ============ POST FLOW: get/generate ID -> fill form ============
+  const postOverlay = document.getElementById('postOverlay');
+  const stepCode = document.getElementById('stepCode');
+  const stepNewCode = document.getElementById('stepNewCode');
+  const stepDetails = document.getElementById('stepDetails');
+  const codeInput = document.getElementById('codeInput');
+  const generatedCodeDisplay = document.getElementById('generatedCodeDisplay');
+  const postingAsCode = document.getElementById('postingAsCode');
+
+  let currentCode = null;
+
+  function showFormStep(el) {
+    [stepCode, stepNewCode, stepDetails].forEach(s => s.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  function openPostFlow(prefillCode) {
+    codeInput.value = '';
+    showFormStep(stepCode);
+    postOverlay.classList.add('open');
+    if (prefillCode) {
+      currentCode = prefillCode;
+      postingAsCode.textContent = prefillCode;
+      showFormStep(stepDetails);
+    }
+  }
+
+  document.getElementById('openPostFlow').addEventListener('click', () => openPostFlow());
+  document.getElementById('cancelStepCode').addEventListener('click', () => postOverlay.classList.remove('open'));
+  postOverlay.addEventListener('click', (e) => { if (e.target === postOverlay) postOverlay.classList.remove('open'); });
+
+  document.getElementById('continueStepCode').addEventListener('click', async () => {
+    const typed = codeInput.value.trim().toUpperCase();
+    if (typed) {
+      currentCode = typed;
+      postingAsCode.textContent = currentCode;
+      showFormStep(stepDetails);
+      return;
+    }
+    const { data, error } = await window.supabase.rpc('generate_profile_code');
+    if (error) {
+      alert('Could not generate an ID: ' + error.message);
+      return;
+    }
+    currentCode = data;
+    generatedCodeDisplay.textContent = currentCode;
+    showFormStep(stepNewCode);
+  });
+
+  document.getElementById('backFromNewCode').addEventListener('click', () => showFormStep(stepCode));
+  document.getElementById('continueFromNewCode').addEventListener('click', () => {
+    postingAsCode.textContent = currentCode;
+    showFormStep(stepDetails);
+  });
+  document.getElementById('cancelStepDetails').addEventListener('click', () => postOverlay.classList.remove('open'));
+
+  // "Other" system write-in, locked until selected
   const systemSelect = document.getElementById('f_system');
   const systemOtherWrap = document.getElementById('f_system_other_wrap');
   const systemOtherInput = document.getElementById('f_system_other');
@@ -599,25 +796,6 @@
       systemOtherInput.value = '';
     }
   });
-
-  const TOKENS_KEY = 'adventurersBoardTokens';
-
-  function getStoredTokens() {
-    try {
-      const raw = localStorage.getItem(TOKENS_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
-  }
-
-  function addStoredToken(token) {
-    const tokens = getStoredTokens();
-    if (!tokens.includes(token)) {
-      tokens.push(token);
-      localStorage.setItem(TOKENS_KEY, JSON.stringify(tokens));
-    }
-  }
 
   document.getElementById('listingForm').addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -637,7 +815,8 @@
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
 
-    const { data, error } = await window.supabase.rpc('submit_listing', {
+    const { error } = await window.supabase.rpc('submit_listing_with_code', {
+      p_code: currentCode,
       p_role: document.getElementById('f_role').value,
       p_name: document.getElementById('f_name').value,
       p_system: finalSystem,
@@ -652,73 +831,204 @@
     submitBtn.textContent = 'Add to board';
 
     if (error) {
-      alert('Something went wrong submitting your listing: ' + error.message);
+      alert(error.message);
       console.error(error);
       return;
-    }
-
-    const row = Array.isArray(data) ? data[0] : data;
-    if (row && row.claim_token) {
-      addStoredToken(row.claim_token);
     }
 
     e.target.reset();
     systemOtherWrap.style.display = 'none';
     systemOtherInput.disabled = true;
-    overlay.classList.remove('open');
-    alert('Thanks! Your listing is pending review and will appear once approved. Check "My submissions" anytime to see its status.');
+    postOverlay.classList.remove('open');
+    alert('Thanks! Your listing is pending review. Use "My submissions" with ID ' + currentCode + ' anytime to check on it or edit it.');
   });
 
+  // ============ MY SUBMISSIONS: look up + edit by ID ============
   const myListingsOverlay = document.getElementById('myListingsOverlay');
   const myListingsBody = document.getElementById('myListingsBody');
+  const lookupCodeInput = document.getElementById('lookupCodeInput');
 
-  document.getElementById('openMyListings').addEventListener('click', async () => {
+  document.getElementById('openMyListings').addEventListener('click', () => {
+    lookupCodeInput.value = '';
+    myListingsBody.innerHTML = '';
     myListingsOverlay.classList.add('open');
-    myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">Loading...</p>';
+  });
+  document.getElementById('closeMyListings').addEventListener('click', () => myListingsOverlay.classList.remove('open'));
+  myListingsOverlay.addEventListener('click', (e) => { if (e.target === myListingsOverlay) myListingsOverlay.classList.remove('open'); });
 
-    const tokens = getStoredTokens();
-    if (!tokens.length) {
-      myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">You haven\'t submitted any listings from this browser yet.</p>';
+  document.getElementById('lookupCodeBtn').addEventListener('click', async () => {
+    const code = lookupCodeInput.value.trim().toUpperCase();
+    if (!code) {
+      alert('Please enter your ID.');
       return;
     }
+    myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">Loading...</p>';
 
-    const { data, error } = await window.supabase.rpc('get_my_listings', { p_tokens: tokens });
+    const { data, error } = await window.supabase.rpc('get_listings_by_code', { p_code: code });
 
     if (error) {
-      myListingsBody.innerHTML = `<p class="empty" style="padding:20px 0;">Could not load your submissions: ${escapeHtml(error.message)}</p>`;
+      myListingsBody.innerHTML = `<p class="empty" style="padding:20px 0;">Could not look that up: ${escapeHtml(error.message)}</p>`;
       return;
     }
 
     if (!data || !data.length) {
-      myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">You haven\'t submitted any listings from this browser yet.</p>';
+      myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">No listings found for that ID. Double check it, or post your first listing.</p>';
       return;
     }
 
+    renderMyListings(code, data);
+  });
+
+  function renderMyListings(code, rows) {
     myListingsBody.innerHTML = '';
-    data.forEach(l => {
-      const card = document.createElement('div');
-      card.className = 'pending-card';
-      const statusLabel = l.status === 'approved' ? 'Live on the board' : 'Pending review';
-      const statusColor = l.status === 'approved' ? 'var(--forest)' : 'var(--oxblood)';
-      card.innerHTML = `
-        <p class="pending-role" style="color:${statusColor};">${statusLabel}</p>
-        <p class="pending-name">${escapeHtml(l.name)}</p>
-        <p class="pending-line"><strong>${escapeHtml(l.system)}</strong> · ${escapeHtml(l.format)}</p>
-        <p class="pending-line">${escapeHtml(l.exp)} · ${escapeHtml(l.schedule || 'No schedule given')}</p>
-        ${l.contact ? `<p class="pending-line"><strong>Contact:</strong> ${escapeHtml(l.contact)}</p>` : ''}
-        ${l.bio ? `<p class="pending-bio">${escapeHtml(l.bio)}</p>` : ''}
-      `;
-      myListingsBody.appendChild(card);
+
+    rows.forEach(item => {
+      myListingsBody.appendChild(buildEditCard(code, item));
     });
-  });
 
-  document.getElementById('closeMyListings').addEventListener('click', () => {
-    myListingsOverlay.classList.remove('open');
-  });
-  myListingsOverlay.addEventListener('click', (e) => {
-    if (e.target === myListingsOverlay) myListingsOverlay.classList.remove('open');
-  });
+    const hasRoles = rows.map(r => r.role);
+    ['dm', 'player'].forEach(role => {
+      if (!hasRoles.includes(role)) {
+        const prompt = document.createElement('div');
+        prompt.className = 'missing-role-prompt';
+        const label = role === 'dm' ? 'Game Master' : 'Player';
+        prompt.innerHTML = `<p>You don't have a ${label} listing under this ID yet.</p>`;
+        const btn = document.createElement('button');
+        btn.className = 'add-btn';
+        btn.textContent = `+ Add a ${label} listing`;
+        btn.addEventListener('click', () => {
+          myListingsOverlay.classList.remove('open');
+          openPostFlow(code);
+          document.getElementById('f_role').value = role;
+        });
+        prompt.appendChild(btn);
+        myListingsBody.appendChild(prompt);
+      }
+    });
+  }
 
+  function buildEditCard(code, item) {
+    const uid = item.id.replace(/-/g, '_');
+    const card = document.createElement('div');
+    card.className = 'edit-card';
+
+    const isKnown = KNOWN_SYSTEMS.includes(item.system);
+    const systemOptions = ['D&D 5e', 'Pathfinder 2e', 'Call of Cthulhu', 'Blades in the Dark'];
+
+    card.innerHTML = `
+      <span class="status-pill ${item.status}">${item.status === 'approved' ? 'Live on the board' : 'Pending review'}</span>
+      <p class="card-role ${item.role === 'player' ? 'player' : ''}">${item.role === 'dm' ? 'Game Master' : 'Player'}</p>
+
+      <div class="field">
+        <label>Name / handle</label>
+        <input type="text" id="e_name_${uid}" value="${escapeAttr(item.name)}">
+      </div>
+      <div class="field">
+        <label>Game system</label>
+        <select id="e_system_${uid}">
+          <option value="">Select a system...</option>
+          ${systemOptions.map(s => `<option value="${s}" ${item.system === s ? 'selected' : ''}>${s}</option>`).join('')}
+          <option value="Other" ${!isKnown ? 'selected' : ''}>Other</option>
+        </select>
+      </div>
+      <div class="field" id="e_system_other_wrap_${uid}" style="display:${!isKnown ? 'block' : 'none'};">
+        <label>Name the system</label>
+        <input type="text" id="e_system_other_${uid}" value="${!isKnown ? escapeAttr(item.system) : ''}" ${isKnown ? 'disabled' : ''}>
+      </div>
+      <div class="field">
+        <label>Format</label>
+        <select id="e_format_${uid}">
+          <option ${item.format === 'Online' ? 'selected' : ''}>Online</option>
+          <option ${item.format === 'In-person' ? 'selected' : ''}>In-person</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Experience level</label>
+        <select id="e_exp_${uid}">
+          <option ${item.exp === 'New' ? 'selected' : ''}>New</option>
+          <option ${item.exp === 'Some experience' ? 'selected' : ''}>Some experience</option>
+          <option ${item.exp === 'Veteran' ? 'selected' : ''}>Veteran</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Schedule</label>
+        <input type="text" id="e_schedule_${uid}" value="${escapeAttr(item.schedule || '')}">
+      </div>
+      <div class="field">
+        <label>Short bio</label>
+        <textarea id="e_bio_${uid}">${escapeHtml(item.bio || '')}</textarea>
+      </div>
+      <div class="field">
+        <label>How can people reach you?</label>
+        <input type="text" id="e_contact_${uid}" value="${escapeAttr(item.contact || '')}">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" data-action="cancel">Cancel</button>
+        <button type="button" class="btn-submit" data-action="save">Save</button>
+      </div>
+    `;
+
+    const sysSelect = card.querySelector(`#e_system_${uid}`);
+    const sysOtherWrap = card.querySelector(`#e_system_other_wrap_${uid}`);
+    const sysOtherInput = card.querySelector(`#e_system_other_${uid}`);
+    sysSelect.addEventListener('change', () => {
+      if (sysSelect.value === 'Other') {
+        sysOtherWrap.style.display = 'block';
+        sysOtherInput.disabled = false;
+      } else {
+        sysOtherWrap.style.display = 'none';
+        sysOtherInput.disabled = true;
+        sysOtherInput.value = '';
+      }
+    });
+
+    card.querySelector('[data-action="cancel"]').addEventListener('click', () => {
+      card.replaceWith(buildEditCard(code, item));
+    });
+
+    card.querySelector('[data-action="save"]').addEventListener('click', async () => {
+      const chosenSystem = sysSelect.value;
+      if (!chosenSystem) { alert('Please select a game system.'); return; }
+      if (chosenSystem === 'Other' && !sysOtherInput.value.trim()) { alert('Please enter the name of the game system.'); return; }
+      const finalSystem = chosenSystem === 'Other' ? sysOtherInput.value.trim() : chosenSystem;
+
+      const saveBtn = card.querySelector('[data-action="save"]');
+      saveBtn.disabled = true;
+      saveBtn.textContent = 'Saving...';
+
+      const { data, error } = await window.supabase.rpc('update_my_listing', {
+        p_code: code,
+        p_id: item.id,
+        p_name: card.querySelector(`#e_name_${uid}`).value,
+        p_system: finalSystem,
+        p_format: card.querySelector(`#e_format_${uid}`).value,
+        p_exp: card.querySelector(`#e_exp_${uid}`).value,
+        p_schedule: card.querySelector(`#e_schedule_${uid}`).value,
+        p_bio: card.querySelector(`#e_bio_${uid}`).value,
+        p_contact: card.querySelector(`#e_contact_${uid}`).value,
+      });
+
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Save';
+
+      if (error) {
+        alert('Could not save: ' + error.message);
+        return;
+      }
+
+      const updated = Array.isArray(data) ? data[0] : data;
+      alert('Saved! This listing is back in the review queue since it was edited.');
+      card.replaceWith(buildEditCard(code, updated));
+    });
+
+    return card;
+  }
+
+  function escapeAttr(str) {
+    return (str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+
+  // ============ MAINTENANCE MODE CHECK ============
   function showRealSite() {
     document.getElementById('maintenanceScreen').style.display = 'none';
     document.getElementById('siteContent').style.display = 'block';

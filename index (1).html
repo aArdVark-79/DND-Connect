@@ -1,0 +1,622 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Adventurers' Board — Find a DM or Party</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600;700&family=Spectral+SC:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --parchment: #e5d8b4;
+    --parchment-dark: #d9c89c;
+    --ink: #2a241a;
+    --ink-soft: #55503f;
+    --forest: #2c4a3b;
+    --forest-light: #3d6650;
+    --oxblood: #6b2737;
+    --gold: #a3782f;
+    --gold-bright: #c99a3f;
+    --card-bg: #f1e8d0;
+    --line: rgba(42, 36, 26, 0.18);
+    --shadow: rgba(42, 36, 26, 0.25);
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--parchment);
+    background-image:
+      radial-gradient(circle at 20% 20%, rgba(0,0,0,0.03) 0, transparent 40%),
+      radial-gradient(circle at 80% 60%, rgba(0,0,0,0.03) 0, transparent 45%);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    line-height: 1.5;
+  }
+
+  a { color: inherit; }
+
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
+
+  /* HEADER */
+  header.hero {
+    border-bottom: 3px double var(--ink);
+    padding: 56px 0 40px;
+    position: relative;
+  }
+
+  .eyebrow {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .eyebrow::before, .eyebrow::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--ink);
+    opacity: 0.35;
+  }
+
+  h1.title {
+    font-family: 'Spectral SC', serif;
+    font-weight: 700;
+    font-size: clamp(38px, 6vw, 64px);
+    margin: 18px 0 10px;
+    letter-spacing: 0.01em;
+    color: var(--ink);
+  }
+
+  .subtitle {
+    font-family: 'Spectral', serif;
+    font-style: italic;
+    font-size: 19px;
+    color: var(--ink-soft);
+    max-width: 560px;
+  }
+
+  .d20 {
+    position: absolute;
+    top: 50px;
+    right: 24px;
+    width: 78px;
+    height: 78px;
+    opacity: 0.9;
+  }
+
+  /* FILTER BAR */
+  .board {
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: var(--parchment);
+    border-bottom: 1px solid var(--line);
+    padding: 18px 0;
+  }
+
+  .filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .role-toggle {
+    display: flex;
+    border: 2px solid var(--ink);
+    border-radius: 3px;
+    overflow: hidden;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+  }
+  .role-toggle button {
+    background: var(--card-bg);
+    border: none;
+    padding: 9px 16px;
+    cursor: pointer;
+    color: var(--ink);
+    font-family: inherit;
+    font-size: inherit;
+    letter-spacing: 0.03em;
+    border-right: 1px solid var(--ink);
+  }
+  .role-toggle button:last-child { border-right: none; }
+  .role-toggle button.active { background: var(--forest); color: var(--parchment); }
+
+  select, input[type="text"] {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    padding: 9px 12px;
+    border: 1px solid var(--ink);
+    border-radius: 3px;
+    background: var(--card-bg);
+    color: var(--ink);
+  }
+
+  .add-btn {
+    margin-left: auto;
+    background: var(--oxblood);
+    color: var(--parchment);
+    border: none;
+    padding: 10px 18px;
+    border-radius: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .add-btn:hover { background: #82303f; }
+
+  /* GRID */
+  main { padding: 40px 0 80px; }
+
+  .count-line {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 20px;
+    letter-spacing: 0.05em;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 22px;
+  }
+
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 22px;
+    position: relative;
+    box-shadow: 0 1px 0 var(--shadow);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+  }
+  .card:hover {
+    transform: translateY(-3px) rotate(-0.3deg);
+    box-shadow: 0 10px 18px -8px var(--shadow);
+  }
+
+  .badge {
+    position: absolute;
+    top: -10px;
+    right: 18px;
+    width: 34px;
+    height: 34px;
+  }
+
+  .card-role {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--oxblood);
+  }
+  .card-role.player { color: var(--forest-light); }
+
+  .card-name {
+    font-family: 'Spectral', serif;
+    font-weight: 600;
+    font-size: 22px;
+    margin: 4px 0 8px;
+  }
+
+  .card-line {
+    font-size: 14px;
+    color: var(--ink-soft);
+    margin-bottom: 3px;
+  }
+  .card-line strong { color: var(--ink); font-weight: 600; }
+
+  .tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 14px;
+  }
+  .tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 3px 8px;
+    border: 1px solid var(--ink);
+    border-radius: 3px;
+    color: var(--ink);
+  }
+
+  .card-bio {
+    font-size: 13.5px;
+    margin-top: 12px;
+    color: var(--ink-soft);
+    border-top: 1px dashed var(--line);
+    padding-top: 12px;
+  }
+
+  .empty {
+    font-family: 'Spectral', serif;
+    font-style: italic;
+    font-size: 18px;
+    color: var(--ink-soft);
+    padding: 60px 0;
+    text-align: center;
+  }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 16, 10, 0.55);
+    z-index: 20;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--parchment);
+    border: 2px solid var(--ink);
+    border-radius: 4px;
+    max-width: 460px;
+    width: 100%;
+    padding: 32px;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal h2 {
+    font-family: 'Spectral SC', serif;
+    font-size: 26px;
+    margin: 0 0 6px;
+  }
+  .modal p.note {
+    font-size: 13px;
+    color: var(--ink-soft);
+    margin-bottom: 20px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .field { margin-bottom: 14px; }
+  .field label {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    margin-bottom: 5px;
+    color: var(--ink-soft);
+  }
+  .field input, .field select, .field textarea {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--ink);
+    border-radius: 3px;
+    background: var(--card-bg);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    color: var(--ink);
+  }
+  .field textarea { resize: vertical; min-height: 60px; }
+
+  .modal-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 22px;
+  }
+  .modal-actions button {
+    flex: 1;
+    padding: 11px;
+    border-radius: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    border: 1px solid var(--ink);
+  }
+  .btn-cancel { background: var(--card-bg); color: var(--ink); }
+  .btn-submit { background: var(--forest); color: var(--parchment); border-color: var(--forest); }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 24px 0 40px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    text-align: center;
+  }
+
+  @media (max-width: 640px) {
+    .d20 { display: none; }
+    .add-btn { margin-left: 0; width: 100%; text-align: center; }
+    .filters { flex-direction: column; align-items: stretch; }
+    select, input[type="text"] { width: 100%; }
+  }
+</style>
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+  // ---- Fill these in with your own project's values ----
+  // Find both under Project Settings -> API in your Supabase dashboard.
+  const SUPABASE_URL = 'https://hmweboxsztxkgtgnkbvz.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhtd2Vib3hzenR4a2d0Z25rYnZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3NzkwOTksImV4cCI6MjEwMzM1NTA5OX0.l6jQ7KQJ82vahll6F-5chFFDGsmC1cdTkUOcr327KLk';
+
+  window.supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+</script>
+</head>
+<body>
+
+<div id="maintenanceScreen" style="display:none; min-height:100vh; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px;">
+  <h1 style="font-family:'Spectral SC', serif; font-size:32px; margin-bottom:10px;">Closed for testing</h1>
+  <p style="font-family:'Spectral', serif; font-style:italic; color:var(--ink-soft); max-width:400px;">The board is being set up right now. Check back soon.</p>
+</div>
+
+<div id="siteContent" style="display:none;">
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">A notice board for tabletop games</p>
+    <h1 class="title">The Adventurers' Board</h1>
+    <p class="subtitle">Where Dungeon Masters post their tables, and players go looking for a seat.</p>
+  </div>
+  <svg class="d20" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <polygon points="50,4 92,28 92,72 50,96 8,72 8,28" stroke="#2a241a" stroke-width="2.5" fill="#f1e8d0"/>
+    <polygon points="50,4 92,28 50,50" fill="#c99a3f" opacity="0.5"/>
+    <polygon points="50,4 8,28 50,50" fill="#6b2737" opacity="0.35"/>
+    <polygon points="8,28 8,72 50,50" fill="#2c4a3b" opacity="0.4"/>
+    <polygon points="92,28 92,72 50,50" fill="#a3782f" opacity="0.4"/>
+    <polygon points="50,96 8,72 50,50" fill="#3d6650" opacity="0.4"/>
+    <polygon points="50,96 92,72 50,50" fill="#82303f" opacity="0.35"/>
+    <text x="50" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="15" fill="#2a241a">20</text>
+  </svg>
+</header>
+
+<div class="board">
+  <div class="wrap filters">
+    <div class="role-toggle" id="roleToggle">
+      <button data-role="all" class="active">All</button>
+      <button data-role="dm">DMs</button>
+      <button data-role="player">Players</button>
+    </div>
+    <select id="systemFilter">
+      <option value="">Any system</option>
+      <option value="D&D 5e">D&D 5e</option>
+      <option value="Pathfinder 2e">Pathfinder 2e</option>
+      <option value="Call of Cthulhu">Call of Cthulhu</option>
+      <option value="Blades in the Dark">Blades in the Dark</option>
+    </select>
+    <select id="formatFilter">
+      <option value="">Any format</option>
+      <option value="Online">Online</option>
+      <option value="In-person">In-person</option>
+    </select>
+    <select id="expFilter">
+      <option value="">Any experience</option>
+      <option value="New">New</option>
+      <option value="Some experience">Some experience</option>
+      <option value="Veteran">Veteran</option>
+    </select>
+    <button class="add-btn" id="openModal">+ Post your listing</button>
+  </div>
+</div>
+
+<main class="wrap">
+  <p class="count-line" id="countLine"></p>
+  <div class="grid" id="grid"></div>
+  <p class="empty" id="emptyMsg" style="display:none;">No one here yet — be the first to post a listing.</p>
+</main>
+
+<footer>
+  v1 — sample data only, nothing here is saved yet
+</footer>
+</div>
+
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2>Post your listing</h2>
+    <p class="note">Your listing is reviewed before it appears on the board — usually within a day or two.</p>
+    <form id="listingForm">
+      <div class="field">
+        <label>I am a...</label>
+        <select id="f_role">
+          <option value="dm">Dungeon Master</option>
+          <option value="player">Player</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Name / handle</label>
+        <input type="text" id="f_name" required>
+      </div>
+      <div class="field">
+        <label>Game system</label>
+        <input type="text" id="f_system" placeholder="D&D 5e, Pathfinder 2e..." required>
+      </div>
+      <div class="field">
+        <label>Format</label>
+        <select id="f_format">
+          <option>Online</option>
+          <option>In-person</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Experience level</label>
+        <select id="f_exp">
+          <option>New</option>
+          <option>Some experience</option>
+          <option>Veteran</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Schedule</label>
+        <input type="text" id="f_schedule" placeholder="Weeknights, Sunday afternoons...">
+      </div>
+      <div class="field">
+        <label>Short bio</label>
+        <textarea id="f_bio" placeholder="Tell people a bit about your table or what you're looking for."></textarea>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="cancelModal">Cancel</button>
+        <button type="submit" class="btn-submit">Add to board</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  // Listings now live in Supabase, not in a local array.
+  // This starts empty and is filled by loadListings() below.
+  let listings = [];
+
+  const grid = document.getElementById('grid');
+  const countLine = document.getElementById('countLine');
+  const emptyMsg = document.getElementById('emptyMsg');
+  const roleToggle = document.getElementById('roleToggle');
+  const systemFilter = document.getElementById('systemFilter');
+  const formatFilter = document.getElementById('formatFilter');
+  const expFilter = document.getElementById('expFilter');
+
+  let activeRole = 'all';
+
+  async function loadListings() {
+    // The RLS policy on the "listings" table only lets anonymous visitors
+    // see rows where status = 'approved' -- pending rows are invisible here.
+    const { data, error } = await window.supabase
+      .from('listings')
+      .select('*')
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      console.error('Could not load listings:', error);
+      return;
+    }
+    listings = data;
+    render();
+  }
+
+  function render() {
+    const sys = systemFilter.value;
+    const fmt = formatFilter.value;
+    const exp = expFilter.value;
+
+    const filtered = listings.filter(l => {
+      if (activeRole !== 'all' && l.role !== activeRole) return false;
+      if (sys && l.system !== sys) return false;
+      if (fmt && l.format !== fmt) return false;
+      if (exp && l.exp !== exp) return false;
+      return true;
+    });
+
+    countLine.textContent = filtered.length + (filtered.length === 1 ? ' listing on the board' : ' listings on the board');
+    grid.innerHTML = '';
+    emptyMsg.style.display = filtered.length ? 'none' : 'block';
+
+    filtered.forEach(l => {
+      const card = document.createElement('div');
+      card.className = 'card';
+      card.innerHTML = `
+        <p class="card-role ${l.role === 'player' ? 'player' : ''}">${l.role === 'dm' ? 'Dungeon Master' : 'Player'}</p>
+        <p class="card-name">${escapeHtml(l.name)}</p>
+        <p class="card-line"><strong>${escapeHtml(l.system)}</strong> · ${escapeHtml(l.format)}</p>
+        <p class="card-line">${escapeHtml(l.exp)} · ${escapeHtml(l.schedule || 'Schedule flexible')}</p>
+        <div class="tags">
+          <span class="tag">${escapeHtml(l.system)}</span>
+          <span class="tag">${escapeHtml(l.format)}</span>
+          <span class="tag">${escapeHtml(l.exp)}</span>
+        </div>
+        ${l.bio ? `<p class="card-bio">${escapeHtml(l.bio)}</p>` : ''}
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  roleToggle.addEventListener('click', (e) => {
+    if (e.target.tagName !== 'BUTTON') return;
+    [...roleToggle.children].forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    activeRole = e.target.dataset.role;
+    render();
+  });
+
+  [systemFilter, formatFilter, expFilter].forEach(el => el.addEventListener('change', render));
+
+  // ---- Modal ----
+  const overlay = document.getElementById('modalOverlay');
+  document.getElementById('openModal').addEventListener('click', () => overlay.classList.add('open'));
+  document.getElementById('cancelModal').addEventListener('click', () => overlay.classList.remove('open'));
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
+
+  document.getElementById('listingForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const submitBtn = e.target.querySelector('.btn-submit');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Submitting...';
+
+    const { error } = await window.supabase.from('listings').insert({
+      role: document.getElementById('f_role').value,
+      name: document.getElementById('f_name').value,
+      system: document.getElementById('f_system').value,
+      format: document.getElementById('f_format').value,
+      exp: document.getElementById('f_exp').value,
+      schedule: document.getElementById('f_schedule').value,
+      bio: document.getElementById('f_bio').value,
+      status: 'pending',
+    });
+
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Add to board';
+
+    if (error) {
+      alert('Something went wrong submitting your listing. Please try again.');
+      console.error(error);
+      return;
+    }
+
+    e.target.reset();
+    overlay.classList.remove('open');
+    alert('Thanks! Your listing is pending review and will appear once approved.');
+  });
+
+  async function checkMaintenanceMode() {
+    const { data, error } = await window.supabase
+      .from('site_settings')
+      .select('maintenance')
+      .eq('id', 1)
+      .single();
+
+    if (error) {
+      // If the settings row can't be read, fail open (show the site) rather than blocking everyone
+      console.error('Could not check maintenance mode:', error);
+      return false;
+    }
+    return data.maintenance;
+  }
+
+  (async () => {
+    const isDown = await checkMaintenanceMode();
+    const maintenanceScreen = document.getElementById('maintenanceScreen');
+    const siteContent = document.getElementById('siteContent');
+
+    if (isDown) {
+      maintenanceScreen.style.display = 'flex';
+      siteContent.style.display = 'none';
+      return;
+    }
+
+    maintenanceScreen.style.display = 'none';
+    siteContent.style.display = 'block';
+    loadListings();
+  })();
+</script>
+
+</body>
+</html>

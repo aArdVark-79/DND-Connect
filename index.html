@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -140,6 +141,18 @@
     color: var(--ink);
   }
 
+  .filter-btn {
+    background: var(--card-bg);
+    color: var(--ink);
+    border: 1px solid var(--ink);
+    padding: 9px 14px;
+    border-radius: 3px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .extra-filters { display: none; gap: 10px; flex-wrap: wrap; align-items: center; }
+  .extra-filters.open { display: flex; }
   .add-btn {
     margin-left: auto;
     background: var(--oxblood);
@@ -378,26 +391,33 @@
       <button data-role="dm">GMs</button>
       <button data-role="player">Players</button>
     </div>
-    <select id="systemFilter">
-      <option value="">Any system</option>
-      <option value="D&D 5e">D&D 5e</option>
-      <option value="Pathfinder 2e">Pathfinder 2e</option>
-      <option value="Call of Cthulhu">Call of Cthulhu</option>
-      <option value="Blades in the Dark">Blades in the Dark</option>
-      <option value="Other">Other</option>
-    </select>
-    <select id="formatFilter">
-      <option value="">Any format</option>
-      <option value="Online">Online</option>
-      <option value="In-person">In-person</option>
-    </select>
-    <select id="expFilter">
-      <option value="">Any experience</option>
-      <option value="New">New</option>
-      <option value="Some experience">Some experience</option>
-      <option value="Veteran">Veteran</option>
-    </select>
-    <button class="add-btn" id="openModal">+ Post your listing</button>
+    <button class="filter-btn" id="toggleFilters">Filters ▾</button>
+    <div class="extra-filters" id="extraFilters">
+      <select id="systemFilter">
+        <option value="">Any system</option>
+        <option value="D&D 5e">D&D 5e</option>
+        <option value="Pathfinder 2e">Pathfinder 2e</option>
+        <option value="Call of Cthulhu">Call of Cthulhu</option>
+        <option value="Blades in the Dark">Blades in the Dark</option>
+        <option value="Other">Other</option>
+      </select>
+      <select id="formatFilter">
+        <option value="">Any format</option>
+        <option value="Online">Online</option>
+        <option value="In-person">In-person</option>
+      </select>
+      <select id="expFilter">
+        <option value="">Any experience</option>
+        <option value="New">New</option>
+        <option value="Some experience">Some experience</option>
+        <option value="Veteran">Veteran</option>
+      </select>
+      <select id="sortOrder">
+        <option value="recent">Most recent</option>
+        <option value="alpha">Alphabetical</option>
+      </select>
+    </div>
+    <button class="add-btn" id="openModal">+ Create / add a listing</button>
     <button class="add-btn" id="openMyListings" style="background: var(--forest);">My submissions</button>
   </div>
 </div>
@@ -415,7 +435,13 @@
 
 <div class="modal-overlay" id="modalOverlay">
   <div class="modal">
-    <h2>Post your listing</h2>
+    <h2 id="listingModalTitle">Create your profile</h2>
+    <p class="note" id="listingModalNote">First, your Quest ID will be generated. Keep it safe — you will use it to manage your listings later.</p>
+    <div id="profileStart" class="field">
+      <button type="button" class="btn-submit" id="generateProfileId" style="width:100%; padding:11px;">Generate my Quest ID</button>
+    </div>
+    <div id="questIdDisplay" style="display:none; border:1px dashed var(--ink); padding:14px; margin-bottom:16px; text-align:center; font-family:'IBM Plex Mono', monospace;"></div>
+    <div id="listingFields" style="display:none;">
     <p class="note">Your listing is reviewed before it appears on the board — usually within a day or two.</p>
     <form id="listingForm">
       <div class="field">
@@ -477,13 +503,16 @@
         <button type="submit" class="btn-submit">Add to board</button>
       </div>
     </form>
+    </div>
   </div>
 </div>
 
 <div class="modal-overlay" id="myListingsOverlay">
   <div class="modal">
     <h2>My submissions</h2>
-    <p class="note">Listings you've submitted from this browser.</p>
+    <p class="note">Enter your six-character Quest ID to find and manage your listings.</p>
+    <div class="field"><label>Quest ID</label><input type="text" id="lookupQuestId" placeholder="123ABC" maxlength="6" style="text-transform:uppercase;"></div>
+    <div class="modal-actions" style="margin-top:0;"><button type="button" class="btn-submit" id="findMyListings">Find my listings</button></div>
     <div id="myListingsBody"></div>
     <div class="modal-actions">
       <button type="button" class="btn-cancel" id="closeMyListings">Close</button>
@@ -501,6 +530,13 @@
   const systemFilter = document.getElementById('systemFilter');
   const formatFilter = document.getElementById('formatFilter');
   const expFilter = document.getElementById('expFilter');
+  const sortOrder = document.getElementById('sortOrder');
+  const extraFilters = document.getElementById('extraFilters');
+  const toggleFilters = document.getElementById('toggleFilters');
+  toggleFilters.addEventListener('click', () => {
+    extraFilters.classList.toggle('open');
+    toggleFilters.textContent = extraFilters.classList.contains('open') ? 'Filters ▴' : 'Filters ▾';
+  });
 
   let activeRole = 'all';
   const KNOWN_SYSTEMS = ['D&D 5e', 'Pathfinder 2e', 'Call of Cthulhu', 'Blades in the Dark'];
@@ -524,6 +560,7 @@
     const sys = systemFilter.value;
     const fmt = formatFilter.value;
     const exp = expFilter.value;
+    const sort = sortOrder.value;
 
     const filtered = listings.filter(l => {
       if (activeRole !== 'all' && l.role !== activeRole) return false;
@@ -536,6 +573,10 @@
       if (exp && l.exp !== exp) return false;
       return true;
     });
+
+    filtered.sort((a, b) => sort === 'alpha'
+      ? String(a.name || '').localeCompare(String(b.name || ''))
+      : new Date(b.created_at) - new Date(a.created_at));
 
     countLine.textContent = filtered.length + (filtered.length === 1 ? ' listing on the board' : ' listings on the board');
     grid.innerHTML = '';
@@ -575,11 +616,11 @@
     render();
   });
 
-  [systemFilter, formatFilter, expFilter].forEach(el => el.addEventListener('change', render));
+  [systemFilter, formatFilter, expFilter, sortOrder].forEach(el => el.addEventListener('change', render));
 
   const overlay = document.getElementById('modalOverlay');
   document.getElementById('openModal').addEventListener('click', () => overlay.classList.add('open'));
-  document.getElementById('cancelModal').addEventListener('click', () => overlay.classList.remove('open'));
+  document.getElementById('cancelModal').addEventListener('click', () => { editingId = null; overlay.classList.remove('open'); });
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
 
   // Only unlock the write-in system box once "Other" is actually selected --
@@ -599,44 +640,56 @@
     }
   });
 
-  const TOKENS_KEY = 'adventurersBoardTokens';
+  let currentQuestId = '';
+  let editingId = null;
 
-  function getStoredTokens() {
-    try {
-      const raw = localStorage.getItem(TOKENS_KEY);
-      return raw ? JSON.parse(raw) : [];
-    } catch {
-      return [];
-    }
+  function normalizeQuestId(value) {
+    return (value || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
   }
 
-  function addStoredToken(token) {
-    const tokens = getStoredTokens();
-    if (!tokens.includes(token)) {
-      tokens.push(token);
-      localStorage.setItem(TOKENS_KEY, JSON.stringify(tokens));
-    }
+  function makeQuestId() {
+    const digits = Array.from({length: 3}, () => Math.floor(Math.random() * 10)).join('');
+    const letters = Array.from({length: 3}, () => 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'[Math.floor(Math.random() * 26)]).join('');
+    return digits + letters;
   }
+
+  const listingFields = document.getElementById('listingFields');
+  const profileStart = document.getElementById('profileStart');
+  const questIdDisplay = document.getElementById('questIdDisplay');
+
+  document.getElementById('openModal').addEventListener('click', () => {
+    editingId = null;
+    currentQuestId = '';
+    document.getElementById('listingForm').reset();
+    profileStart.style.display = 'block';
+    questIdDisplay.style.display = 'none';
+    listingFields.style.display = 'none';
+    document.getElementById('listingModalTitle').textContent = 'Create your profile';
+    overlay.classList.add('open');
+  });
+
+  document.getElementById('generateProfileId').addEventListener('click', () => {
+    currentQuestId = makeQuestId();
+    questIdDisplay.innerHTML = '<strong>Your Quest ID:</strong><br><span style="font-size:24px; letter-spacing:0.12em;">' + currentQuestId + '</span><br><small>Save this ID somewhere safe. It is how you will return to edit your listings.</small>';
+    profileStart.style.display = 'none';
+    questIdDisplay.style.display = 'block';
+    listingFields.style.display = 'block';
+    document.getElementById('listingModalTitle').textContent = 'Create a listing';
+  });
 
   document.getElementById('listingForm').addEventListener('submit', async (e) => {
     e.preventDefault();
-
     const chosenSystem = systemSelect.value;
-    if (!chosenSystem) {
-      alert('Please select a game system.');
-      return;
-    }
-    if (chosenSystem === 'Other' && !systemOtherInput.value.trim()) {
-      alert('Please enter the name of the game system.');
-      return;
-    }
-    const finalSystem = chosenSystem === 'Other' ? systemOtherInput.value.trim() : chosenSystem;
+    if (!chosenSystem) return alert('Please select a game system.');
+    if (chosenSystem === 'Other' && !systemOtherInput.value.trim()) return alert('Please enter the name of the game system.');
 
+    const finalSystem = chosenSystem === 'Other' ? systemOtherInput.value.trim() : chosenSystem;
     const submitBtn = e.target.querySelector('.btn-submit');
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Submitting...';
+    submitBtn.textContent = editingId ? 'Saving...' : 'Submitting...';
 
-    const { data, error } = await window.supabase.rpc('submit_listing', {
+    const payload = {
+      p_quest_id: currentQuestId,
       p_role: document.getElementById('f_role').value,
       p_name: document.getElementById('f_name').value,
       p_system: finalSystem,
@@ -644,73 +697,97 @@
       p_exp: document.getElementById('f_exp').value,
       p_schedule: document.getElementById('f_schedule').value,
       p_bio: document.getElementById('f_bio').value,
-      p_contact: document.getElementById('f_contact').value,
-    });
+      p_contact: document.getElementById('f_contact').value
+    };
+
+    const result = editingId
+      ? await window.supabase.rpc('update_listing_by_quest_id', { ...payload, p_listing_id: editingId })
+      : await window.supabase.rpc('submit_listing_by_quest_id', payload);
 
     submitBtn.disabled = false;
     submitBtn.textContent = 'Add to board';
 
-    if (error) {
-      alert('Something went wrong submitting your listing: ' + error.message);
-      console.error(error);
+    if (result.error) {
+      alert('Something went wrong: ' + result.error.message);
+      console.error(result.error);
       return;
     }
 
-    const row = Array.isArray(data) ? data[0] : data;
-    if (row && row.claim_token) {
-      addStoredToken(row.claim_token);
-    }
-
-    e.target.reset();
-    systemOtherWrap.style.display = 'none';
-    systemOtherInput.disabled = true;
     overlay.classList.remove('open');
-    alert('Thanks! Your listing is pending review and will appear once approved. Check "My submissions" anytime to see its status.');
+    if (!editingId) alert('Thanks! Your listing is pending review. Your Quest ID is ' + currentQuestId + '.');
+    loadListings();
   });
 
   const myListingsOverlay = document.getElementById('myListingsOverlay');
   const myListingsBody = document.getElementById('myListingsBody');
 
-  document.getElementById('openMyListings').addEventListener('click', async () => {
+  document.getElementById('openMyListings').addEventListener('click', () => {
     myListingsOverlay.classList.add('open');
+    myListingsBody.innerHTML = '';
+    document.getElementById('lookupQuestId').value = '';
+  });
+
+  document.getElementById('findMyListings').addEventListener('click', async () => {
+    const id = normalizeQuestId(document.getElementById('lookupQuestId').value);
+    if (id.length !== 6) return alert('Please enter your six-character Quest ID.');
+    document.getElementById('lookupQuestId').value = id;
     myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">Loading...</p>';
 
-    const tokens = getStoredTokens();
-    if (!tokens.length) {
-      myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">You haven\'t submitted any listings from this browser yet.</p>';
-      return;
-    }
-
-    const { data, error } = await window.supabase.rpc('get_my_listings', { p_tokens: tokens });
-
+    const { data, error } = await window.supabase.rpc('get_listings_by_quest_id', { p_quest_id: id });
     if (error) {
-      myListingsBody.innerHTML = `<p class="empty" style="padding:20px 0;">Could not load your submissions: ${escapeHtml(error.message)}</p>`;
+      myListingsBody.innerHTML = '<p class="empty">Could not load your listings: ' + escapeHtml(error.message) + '</p>';
       return;
     }
-
     if (!data || !data.length) {
-      myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">You haven\'t submitted any listings from this browser yet.</p>';
+      myListingsBody.innerHTML = '<p class="empty">No listings were found for that Quest ID.</p>';
       return;
     }
 
     myListingsBody.innerHTML = '';
     data.forEach(l => {
       const card = document.createElement('div');
-      card.className = 'pending-card';
-      const statusLabel = l.status === 'approved' ? 'Live on the board' : 'Pending review';
-      const statusColor = l.status === 'approved' ? 'var(--forest)' : 'var(--oxblood)';
+      card.className = 'pending-card card';
       card.innerHTML = `
-        <p class="pending-role" style="color:${statusColor};">${statusLabel}</p>
+        <p class="pending-role">${escapeHtml(l.status)}</p>
         <p class="pending-name">${escapeHtml(l.name)}</p>
-        <p class="pending-line"><strong>${escapeHtml(l.system)}</strong> · ${escapeHtml(l.format)}</p>
-        <p class="pending-line">${escapeHtml(l.exp)} · ${escapeHtml(l.schedule || 'No schedule given')}</p>
+        <p class="pending-line"><strong>${escapeHtml(l.role === 'dm' ? 'Game Master' : 'Player')}</strong> · ${escapeHtml(l.system)}</p>
+        <p class="pending-line">${escapeHtml(l.format)} · ${escapeHtml(l.exp)}</p>
+        <p class="pending-line">${escapeHtml(l.schedule || 'No schedule given')}</p>
         ${l.contact ? `<p class="pending-line"><strong>Contact:</strong> ${escapeHtml(l.contact)}</p>` : ''}
         ${l.bio ? `<p class="pending-bio">${escapeHtml(l.bio)}</p>` : ''}
-      `;
+        <div class="actions"><button class="btn-approve edit-listing">Edit</button></div>`;
+      card.querySelector('.edit-listing').addEventListener('click', () => openEditListing(l, id));
       myListingsBody.appendChild(card);
     });
   });
 
+  function openEditListing(l, questId) {
+    currentQuestId = questId;
+    editingId = l.id;
+    myListingsOverlay.classList.remove('open');
+    overlay.classList.add('open');
+    profileStart.style.display = 'none';
+    questIdDisplay.style.display = 'block';
+    listingFields.style.display = 'block';
+    questIdDisplay.innerHTML = '<strong>Quest ID:</strong> ' + questId;
+    document.getElementById('listingModalTitle').textContent = 'Edit your listing';
+    document.getElementById('f_role').value = l.role;
+    document.getElementById('f_name').value = l.name || '';
+    document.getElementById('f_system').value = KNOWN_SYSTEMS.includes(l.system) ? l.system : 'Other';
+    systemSelect.dispatchEvent(new Event('change'));
+    if (!KNOWN_SYSTEMS.includes(l.system)) systemOtherInput.value = l.system;
+    document.getElementById('f_format').value = l.format;
+    document.getElementById('f_exp').value = l.exp;
+    document.getElementById('f_schedule').value = l.schedule || '';
+    document.getElementById('f_bio').value = l.bio || '';
+    document.getElementById('f_contact').value = l.contact || '';
+    eSafeSubmitLabel();
+  }
+
+  function eSafeSubmitLabel() {
+    const btn = document.querySelector('#listingForm .btn-submit');
+    if (btn) btn.textContent = editingId ? 'Save changes' : 'Add to board';
+  }
   document.getElementById('closeMyListings').addEventListener('click', () => {
     myListingsOverlay.classList.remove('open');
   });

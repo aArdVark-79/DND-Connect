@@ -504,6 +504,17 @@
       </div>
     </form>
     </div>
+    <div id="postSubmitScreen" style="display:none;">
+      <div style="border:1px dashed var(--ink); padding:14px; margin-bottom:16px; text-align:center;">
+        <p style="margin:0 0 6px; font-family:'IBM Plex Mono', monospace; font-size:12px; color:var(--ink-soft);">Your Quest ID</p>
+        <p id="postSubmitQuestId" style="margin:0; font-size:24px; letter-spacing:0.12em; font-family:'IBM Plex Mono', monospace;"></p>
+      </div>
+      <p class="note" style="text-align:center;">Your listing was submitted and is pending review. You can add a second listing under this same ID — for example a GM listing if you just added one as a player — or come back anytime with your Quest ID.</p>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="addAnotherListing">Add another listing</button>
+        <button type="button" class="btn-submit" id="finishPostSubmit">I'm done</button>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -619,7 +630,6 @@
   [systemFilter, formatFilter, expFilter, sortOrder].forEach(el => el.addEventListener('change', render));
 
   const overlay = document.getElementById('modalOverlay');
-  document.getElementById('openModal').addEventListener('click', () => overlay.classList.add('open'));
   document.getElementById('cancelModal').addEventListener('click', () => { editingId = null; overlay.classList.remove('open'); });
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
 
@@ -656,28 +666,43 @@
   const listingFields = document.getElementById('listingFields');
   const profileStart = document.getElementById('profileStart');
   const questIdDisplay = document.getElementById('questIdDisplay');
+  const postSubmitScreen = document.getElementById('postSubmitScreen');
+  const postSubmitQuestId = document.getElementById('postSubmitQuestId');
+  const listingModalNote = document.getElementById('listingModalNote');
+  const listingForm = document.getElementById('listingForm');
+
+  function resetListingForm() {
+    listingForm.reset();
+    editingId = null;
+    systemOtherWrap.style.display = 'none';
+    systemOtherInput.disabled = true;
+    document.querySelector('#listingForm .btn-submit').textContent = 'Add to board';
+  }
 
   document.getElementById('openModal').addEventListener('click', () => {
     editingId = null;
     currentQuestId = '';
-    document.getElementById('listingForm').reset();
+    resetListingForm();
     profileStart.style.display = 'block';
     questIdDisplay.style.display = 'none';
     listingFields.style.display = 'none';
+    postSubmitScreen.style.display = 'none';
+    listingModalNote.style.display = 'block';
     document.getElementById('listingModalTitle').textContent = 'Create your profile';
     overlay.classList.add('open');
   });
 
   document.getElementById('generateProfileId').addEventListener('click', () => {
     currentQuestId = makeQuestId();
-    questIdDisplay.innerHTML = '<strong>Your Quest ID:</strong><br><span style="font-size:24px; letter-spacing:0.12em;">' + currentQuestId + '</span><br><small>Save this ID somewhere safe. It is how you will return to edit your listings.</small>';
+    questIdDisplay.innerHTML = '<strong>Your Quest ID:</strong><br><span style="font-size:24px; letter-spacing:0.12em;">' + currentQuestId + '</span><br><small>Save this ID somewhere safe. It is how you will return to edit your listings, or add a second one.</small>';
     profileStart.style.display = 'none';
+    listingModalNote.style.display = 'none';
     questIdDisplay.style.display = 'block';
     listingFields.style.display = 'block';
     document.getElementById('listingModalTitle').textContent = 'Create a listing';
   });
 
-  document.getElementById('listingForm').addEventListener('submit', async (e) => {
+  listingForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const chosenSystem = systemSelect.value;
     if (!chosenSystem) return alert('Please select a game system.');
@@ -685,8 +710,9 @@
 
     const finalSystem = chosenSystem === 'Other' ? systemOtherInput.value.trim() : chosenSystem;
     const submitBtn = e.target.querySelector('.btn-submit');
+    const wasEditing = !!editingId;
     submitBtn.disabled = true;
-    submitBtn.textContent = editingId ? 'Saving...' : 'Submitting...';
+    submitBtn.textContent = wasEditing ? 'Saving...' : 'Submitting...';
 
     const payload = {
       p_quest_id: currentQuestId,
@@ -700,12 +726,12 @@
       p_contact: document.getElementById('f_contact').value
     };
 
-    const result = editingId
+    const result = wasEditing
       ? await window.supabase.rpc('update_listing_by_quest_id', { ...payload, p_listing_id: editingId })
       : await window.supabase.rpc('submit_listing_by_quest_id', payload);
 
     submitBtn.disabled = false;
-    submitBtn.textContent = 'Add to board';
+    submitBtn.textContent = wasEditing ? 'Save changes' : 'Add to board';
 
     if (result.error) {
       alert('Something went wrong: ' + result.error.message);
@@ -713,9 +739,35 @@
       return;
     }
 
-    overlay.classList.remove('open');
-    if (!editingId) alert('Thanks! Your listing is pending review. Your Quest ID is ' + currentQuestId + '.');
+    if (wasEditing) {
+      // Editing an existing listing found via "My submissions" -- just close up.
+      editingId = null;
+      overlay.classList.remove('open');
+    } else {
+      // Fresh submission -- keep the modal open on a confirmation screen so
+      // the same Quest ID can be reused right away for a second listing
+      // (e.g. a player listing followed by a GM listing).
+      listingFields.style.display = 'none';
+      questIdDisplay.style.display = 'none';
+      postSubmitScreen.style.display = 'block';
+      postSubmitQuestId.textContent = currentQuestId;
+      document.getElementById('listingModalTitle').textContent = 'Listing submitted!';
+    }
     loadListings();
+  });
+
+  document.getElementById('addAnotherListing').addEventListener('click', () => {
+    // Same currentQuestId is kept intact -- this is what links the new
+    // listing to the profile they already created.
+    resetListingForm();
+    postSubmitScreen.style.display = 'none';
+    questIdDisplay.style.display = 'block';
+    listingFields.style.display = 'block';
+    document.getElementById('listingModalTitle').textContent = 'Create another listing';
+  });
+
+  document.getElementById('finishPostSubmit').addEventListener('click', () => {
+    overlay.classList.remove('open');
   });
 
   const myListingsOverlay = document.getElementById('myListingsOverlay');
@@ -767,6 +819,8 @@
     myListingsOverlay.classList.remove('open');
     overlay.classList.add('open');
     profileStart.style.display = 'none';
+    listingModalNote.style.display = 'none';
+    postSubmitScreen.style.display = 'none';
     questIdDisplay.style.display = 'block';
     listingFields.style.display = 'block';
     questIdDisplay.innerHTML = '<strong>Quest ID:</strong> ' + questId;
@@ -781,13 +835,9 @@
     document.getElementById('f_schedule').value = l.schedule || '';
     document.getElementById('f_bio').value = l.bio || '';
     document.getElementById('f_contact').value = l.contact || '';
-    eSafeSubmitLabel();
+    document.querySelector('#listingForm .btn-submit').textContent = 'Save changes';
   }
 
-  function eSafeSubmitLabel() {
-    const btn = document.querySelector('#listingForm .btn-submit');
-    if (btn) btn.textContent = editingId ? 'Save changes' : 'Add to board';
-  }
   document.getElementById('closeMyListings').addEventListener('click', () => {
     myListingsOverlay.classList.remove('open');
   });

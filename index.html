@@ -626,11 +626,12 @@
       decided = true;
 
       if (error) {
-        // Can't read the setting -- fail closed, stay on the maintenance screen.
-        console.error('Could not check maintenance mode:', error);
+        alert('DEBUG - Could not read setting. Error: ' + error.message + ' | Code: ' + error.code);
         showMaintenanceScreen();
         return;
       }
+
+      alert('DEBUG - Read succeeded. maintenance value is: ' + data.maintenance + ' (type: ' + typeof data.maintenance + ')');
 
       if (data.maintenance) {
         showMaintenanceScreen();
@@ -638,12 +639,10 @@
         showRealSite();
       }
     } catch (err) {
-      // Anything unexpected (network error, thrown exception, etc.)
-      // -- fail closed rather than accidentally exposing the real site.
+      alert('DEBUG - Unexpected exception: ' + err.message);
       if (decided) return;
       clearTimeout(safetyTimer);
       decided = true;
-      console.error('Unexpected error checking maintenance mode:', err);
       showMaintenanceScreen();
     }
   })();

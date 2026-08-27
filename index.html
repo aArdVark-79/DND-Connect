@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -400,6 +401,7 @@
       <option value="Veteran">Veteran</option>
     </select>
     <button class="add-btn" id="openModal">+ Post your listing</button>
+    <button class="add-btn" id="openMyListings" style="background: var(--forest);">My submissions</button>
   </div>
 </div>
 
@@ -457,11 +459,27 @@
         <label>Short bio</label>
         <textarea id="f_bio" placeholder="Tell people a bit about your table or what you're looking for."></textarea>
       </div>
+      <div class="field">
+        <label>How can people reach you?</label>
+        <input type="text" id="f_contact" placeholder="Discord: yourname, or an email address" required>
+        <p class="note" style="margin-top:6px; margin-bottom:0;">Shown publicly once approved. There's no messaging on this site — only share what you're comfortable posting.</p>
+      </div>
       <div class="modal-actions">
         <button type="button" class="btn-cancel" id="cancelModal">Cancel</button>
         <button type="submit" class="btn-submit">Add to board</button>
       </div>
     </form>
+  </div>
+</div>
+
+<div class="modal-overlay" id="myListingsOverlay">
+  <div class="modal">
+    <h2>My submissions</h2>
+    <p class="note">Listings you've submitted from this browser.</p>
+    <div id="myListingsBody"></div>
+    <div class="modal-actions">
+      <button type="button" class="btn-cancel" id="closeMyListings">Close</button>
+    </div>
   </div>
 </div>
 
@@ -483,9 +501,11 @@
   async function loadListings() {
     // The RLS policy on the "listings" table only lets anonymous visitors
     // see rows where status = 'approved' -- pending rows are invisible here.
+    // We select explicit columns (not '*') so claim_token never goes out
+    // over the public board query.
     const { data, error } = await window.supabase
       .from('listings')
-      .select('*')
+      .select('id, role, name, system, format, exp, schedule, bio, contact, created_at')
       .eq('status', 'approved')
       .order('created_at', { ascending: false });
 
@@ -528,6 +548,7 @@
           <span class="tag">${escapeHtml(l.exp)}</span>
         </div>
         ${l.bio ? `<p class="card-bio">${escapeHtml(l.bio)}</p>` : ''}
+        ${l.contact ? `<p class="card-bio"><strong>Contact:</strong> ${escapeHtml(l.contact)}</p>` : ''}
       `;
       grid.appendChild(card);
     });
@@ -555,35 +576,115 @@
   document.getElementById('cancelModal').addEventListener('click', () => overlay.classList.remove('open'));
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
 
+  // ---- "My submissions" -- claim tokens stored locally, no login needed ----
+  // Each submission returns a private claim_token from the submit_listing
+  // function. We keep those tokens in this browser's localStorage so this
+  // visitor (and only this visitor) can look their own listings back up,
+  // pending or approved, via get_my_listings.
+  const TOKENS_KEY = 'adventurersBoardTokens';
+
+  function getStoredTokens() {
+    try {
+      const raw = localStorage.getItem(TOKENS_KEY);
+      return raw ? JSON.parse(raw) : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function addStoredToken(token) {
+    const tokens = getStoredTokens();
+    if (!tokens.includes(token)) {
+      tokens.push(token);
+      localStorage.setItem(TOKENS_KEY, JSON.stringify(tokens));
+    }
+  }
+
   document.getElementById('listingForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     const submitBtn = e.target.querySelector('.btn-submit');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
 
-    const { error } = await window.supabase.from('listings').insert({
-      role: document.getElementById('f_role').value,
-      name: document.getElementById('f_name').value,
-      system: document.getElementById('f_system').value,
-      format: document.getElementById('f_format').value,
-      exp: document.getElementById('f_exp').value,
-      schedule: document.getElementById('f_schedule').value,
-      bio: document.getElementById('f_bio').value,
-      status: 'pending',
+    const { data, error } = await window.supabase.rpc('submit_listing', {
+      p_role: document.getElementById('f_role').value,
+      p_name: document.getElementById('f_name').value,
+      p_system: document.getElementById('f_system').value,
+      p_format: document.getElementById('f_format').value,
+      p_exp: document.getElementById('f_exp').value,
+      p_schedule: document.getElementById('f_schedule').value,
+      p_bio: document.getElementById('f_bio').value,
+      p_contact: document.getElementById('f_contact').value,
     });
 
     submitBtn.disabled = false;
     submitBtn.textContent = 'Add to board';
 
     if (error) {
-      alert('Something went wrong submitting your listing. Please try again.');
+      alert('Something went wrong submitting your listing: ' + error.message);
       console.error(error);
       return;
     }
 
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row && row.claim_token) {
+      addStoredToken(row.claim_token);
+    }
+
     e.target.reset();
     overlay.classList.remove('open');
-    alert('Thanks! Your listing is pending review and will appear once approved.');
+    alert('Thanks! Your listing is pending review and will appear once approved. Check "My submissions" anytime to see its status.');
+  });
+
+  // ---- My submissions panel ----
+  const myListingsOverlay = document.getElementById('myListingsOverlay');
+  const myListingsBody = document.getElementById('myListingsBody');
+
+  document.getElementById('openMyListings').addEventListener('click', async () => {
+    myListingsOverlay.classList.add('open');
+    myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">Loading...</p>';
+
+    const tokens = getStoredTokens();
+    if (!tokens.length) {
+      myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">You haven\'t submitted any listings from this browser yet.</p>';
+      return;
+    }
+
+    const { data, error } = await window.supabase.rpc('get_my_listings', { p_tokens: tokens });
+
+    if (error) {
+      myListingsBody.innerHTML = `<p class="empty" style="padding:20px 0;">Could not load your submissions: ${escapeHtml(error.message)}</p>`;
+      return;
+    }
+
+    if (!data || !data.length) {
+      myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">You haven\'t submitted any listings from this browser yet.</p>';
+      return;
+    }
+
+    myListingsBody.innerHTML = '';
+    data.forEach(l => {
+      const card = document.createElement('div');
+      card.className = 'pending-card';
+      const statusLabel = l.status === 'approved' ? 'Live on the board' : 'Pending review';
+      const statusColor = l.status === 'approved' ? 'var(--forest)' : 'var(--oxblood)';
+      card.innerHTML = `
+        <p class="pending-role" style="color:${statusColor};">${statusLabel}</p>
+        <p class="pending-name">${escapeHtml(l.name)}</p>
+        <p class="pending-line"><strong>${escapeHtml(l.system)}</strong> · ${escapeHtml(l.format)}</p>
+        <p class="pending-line">${escapeHtml(l.exp)} · ${escapeHtml(l.schedule || 'No schedule given')}</p>
+        ${l.contact ? `<p class="pending-line"><strong>Contact:</strong> ${escapeHtml(l.contact)}</p>` : ''}
+        ${l.bio ? `<p class="pending-bio">${escapeHtml(l.bio)}</p>` : ''}
+      `;
+      myListingsBody.appendChild(card);
+    });
+  });
+
+  document.getElementById('closeMyListings').addEventListener('click', () => {
+    myListingsOverlay.classList.remove('open');
+  });
+  myListingsOverlay.addEventListener('click', (e) => {
+    if (e.target === myListingsOverlay) myListingsOverlay.classList.remove('open');
   });
 
   // Shows the real site content. Used both as the normal "site is open" path

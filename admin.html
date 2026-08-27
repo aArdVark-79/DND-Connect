@@ -221,9 +221,34 @@
   }
 
   maintenanceToggle.addEventListener('click', async () => {
-    const { data } = await supabase.from('site_settings').select('maintenance').eq('id', 1).single();
-    await supabase.from('site_settings').update({ maintenance: !data.maintenance }).eq('id', 1);
+    alert('Button clicked - starting...');
+
+    const { data: readData, error: readError } = await supabase
+      .from('site_settings')
+      .select('maintenance')
+      .eq('id', 1)
+      .single();
+
+    if (readError) {
+      alert('READ FAILED: ' + readError.message + ' (code: ' + readError.code + ')');
+      return;
+    }
+    alert('Read succeeded. Current value: ' + readData.maintenance);
+
+    const { data: updateData, error: updateError } = await supabase
+      .from('site_settings')
+      .update({ maintenance: !readData.maintenance })
+      .eq('id', 1)
+      .select();
+
+    if (updateError) {
+      alert('UPDATE FAILED: ' + updateError.message + ' (code: ' + updateError.code + ')');
+      return;
+    }
+    alert('Update succeeded. Rows changed: ' + JSON.stringify(updateData));
+
     await refreshStatus();
+    alert('Done - status refreshed.');
   });
 
   async function loadPending() {

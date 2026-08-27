@@ -1,10 +1,9 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>The Adventurers' Board — Find a DM or Party</title>
+<title>The Adventurers' Board — Find a GM or Party</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600;700&family=Spectral+SC:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
@@ -40,11 +39,11 @@
 
   .wrap { max-width: 1080px; margin: 0 auto; padding: 0 24px; }
 
-  /* HEADER */
   header.hero {
     border-bottom: 3px double var(--ink);
     padding: 56px 0 40px;
     position: relative;
+    text-align: center;
   }
 
   .eyebrow {
@@ -80,6 +79,8 @@
     font-size: 19px;
     color: var(--ink-soft);
     max-width: 560px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   .d20 {
@@ -91,7 +92,6 @@
     opacity: 0.9;
   }
 
-  /* FILTER BAR */
   .board {
     position: sticky;
     top: 0;
@@ -155,7 +155,6 @@
   }
   .add-btn:hover { background: #82303f; }
 
-  /* GRID */
   main { padding: 40px 0 80px; }
 
   .count-line {
@@ -249,7 +248,6 @@
     text-align: center;
   }
 
-  /* MODAL */
   .modal-overlay {
     display: none;
     position: fixed;
@@ -341,8 +339,6 @@
 <script type="module">
   import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-  // ---- Fill these in with your own project's values ----
-  // Find both under Project Settings -> API in your Supabase dashboard.
   const SUPABASE_URL = 'https://hmweboxsztxkgtgnkbvz.supabase.co';
   const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhtd2Vib3hzenR4a2d0Z25rYnZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3NzkwOTksImV4cCI6MjEwMzM1NTA5OX0.l6jQ7KQJ82vahll6F-5chFFDGsmC1cdTkUOcr327KLk';
 
@@ -361,7 +357,7 @@
   <div class="wrap">
     <p class="eyebrow">A notice board for tabletop games</p>
     <h1 class="title">The Quest Board</h1>
-    <p class="subtitle">Where Dungeon Masters post their tables, and players go looking for a seat.</p>
+    <p class="subtitle">Where Game Masters post their tables, and players go looking for a seat.</p>
   </div>
   <svg class="d20" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
     <polygon points="50,4 92,28 92,72 50,96 8,72 8,28" stroke="#2a241a" stroke-width="2.5" fill="#f1e8d0"/>
@@ -379,7 +375,7 @@
   <div class="wrap filters">
     <div class="role-toggle" id="roleToggle">
       <button data-role="all" class="active">All</button>
-      <button data-role="dm">DMs</button>
+      <button data-role="dm">GMs</button>
       <button data-role="player">Players</button>
     </div>
     <select id="systemFilter">
@@ -388,6 +384,7 @@
       <option value="Pathfinder 2e">Pathfinder 2e</option>
       <option value="Call of Cthulhu">Call of Cthulhu</option>
       <option value="Blades in the Dark">Blades in the Dark</option>
+      <option value="Other">Other</option>
     </select>
     <select id="formatFilter">
       <option value="">Any format</option>
@@ -424,7 +421,7 @@
       <div class="field">
         <label>I am a...</label>
         <select id="f_role">
-          <option value="dm">Dungeon Master</option>
+          <option value="dm">Game Master</option>
           <option value="player">Player</option>
         </select>
       </div>
@@ -434,7 +431,18 @@
       </div>
       <div class="field">
         <label>Game system</label>
-        <input type="text" id="f_system" placeholder="D&D 5e, Pathfinder 2e..." required>
+        <select id="f_system">
+          <option value="">Select a system...</option>
+          <option value="D&D 5e">D&D 5e</option>
+          <option value="Pathfinder 2e">Pathfinder 2e</option>
+          <option value="Call of Cthulhu">Call of Cthulhu</option>
+          <option value="Blades in the Dark">Blades in the Dark</option>
+          <option value="Other">Other</option>
+        </select>
+      </div>
+      <div class="field" id="f_system_other_wrap" style="display:none;">
+        <label>Name the system</label>
+        <input type="text" id="f_system_other" placeholder="e.g. Kids on Bikes" disabled>
       </div>
       <div class="field">
         <label>Format</label>
@@ -484,8 +492,6 @@
 </div>
 
 <script type="module">
-  // Listings now live in Supabase, not in a local array.
-  // This starts empty and is filled by loadListings() below.
   let listings = [];
 
   const grid = document.getElementById('grid');
@@ -497,12 +503,9 @@
   const expFilter = document.getElementById('expFilter');
 
   let activeRole = 'all';
+  const KNOWN_SYSTEMS = ['D&D 5e', 'Pathfinder 2e', 'Call of Cthulhu', 'Blades in the Dark'];
 
   async function loadListings() {
-    // The RLS policy on the "listings" table only lets anonymous visitors
-    // see rows where status = 'approved' -- pending rows are invisible here.
-    // We select explicit columns (not '*') so claim_token never goes out
-    // over the public board query.
     const { data, error } = await window.supabase
       .from('listings')
       .select('id, role, name, system, format, exp, schedule, bio, contact, created_at')
@@ -524,7 +527,11 @@
 
     const filtered = listings.filter(l => {
       if (activeRole !== 'all' && l.role !== activeRole) return false;
-      if (sys && l.system !== sys) return false;
+      if (sys === 'Other') {
+        if (KNOWN_SYSTEMS.includes(l.system)) return false;
+      } else if (sys && l.system !== sys) {
+        return false;
+      }
       if (fmt && l.format !== fmt) return false;
       if (exp && l.exp !== exp) return false;
       return true;
@@ -538,7 +545,7 @@
       const card = document.createElement('div');
       card.className = 'card';
       card.innerHTML = `
-        <p class="card-role ${l.role === 'player' ? 'player' : ''}">${l.role === 'dm' ? 'Dungeon Master' : 'Player'}</p>
+        <p class="card-role ${l.role === 'player' ? 'player' : ''}">${l.role === 'dm' ? 'Game Master' : 'Player'}</p>
         <p class="card-name">${escapeHtml(l.name)}</p>
         <p class="card-line"><strong>${escapeHtml(l.system)}</strong> · ${escapeHtml(l.format)}</p>
         <p class="card-line">${escapeHtml(l.exp)} · ${escapeHtml(l.schedule || 'Schedule flexible')}</p>
@@ -570,17 +577,28 @@
 
   [systemFilter, formatFilter, expFilter].forEach(el => el.addEventListener('change', render));
 
-  // ---- Modal ----
   const overlay = document.getElementById('modalOverlay');
   document.getElementById('openModal').addEventListener('click', () => overlay.classList.add('open'));
   document.getElementById('cancelModal').addEventListener('click', () => overlay.classList.remove('open'));
   overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.classList.remove('open'); });
 
-  // ---- "My submissions" -- claim tokens stored locally, no login needed ----
-  // Each submission returns a private claim_token from the submit_listing
-  // function. We keep those tokens in this browser's localStorage so this
-  // visitor (and only this visitor) can look their own listings back up,
-  // pending or approved, via get_my_listings.
+  // Only unlock the write-in system box once "Other" is actually selected --
+  // otherwise it stays disabled so it can't be typed into or submitted.
+  const systemSelect = document.getElementById('f_system');
+  const systemOtherWrap = document.getElementById('f_system_other_wrap');
+  const systemOtherInput = document.getElementById('f_system_other');
+
+  systemSelect.addEventListener('change', () => {
+    if (systemSelect.value === 'Other') {
+      systemOtherWrap.style.display = 'block';
+      systemOtherInput.disabled = false;
+    } else {
+      systemOtherWrap.style.display = 'none';
+      systemOtherInput.disabled = true;
+      systemOtherInput.value = '';
+    }
+  });
+
   const TOKENS_KEY = 'adventurersBoardTokens';
 
   function getStoredTokens() {
@@ -602,6 +620,18 @@
 
   document.getElementById('listingForm').addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    const chosenSystem = systemSelect.value;
+    if (!chosenSystem) {
+      alert('Please select a game system.');
+      return;
+    }
+    if (chosenSystem === 'Other' && !systemOtherInput.value.trim()) {
+      alert('Please enter the name of the game system.');
+      return;
+    }
+    const finalSystem = chosenSystem === 'Other' ? systemOtherInput.value.trim() : chosenSystem;
+
     const submitBtn = e.target.querySelector('.btn-submit');
     submitBtn.disabled = true;
     submitBtn.textContent = 'Submitting...';
@@ -609,7 +639,7 @@
     const { data, error } = await window.supabase.rpc('submit_listing', {
       p_role: document.getElementById('f_role').value,
       p_name: document.getElementById('f_name').value,
-      p_system: document.getElementById('f_system').value,
+      p_system: finalSystem,
       p_format: document.getElementById('f_format').value,
       p_exp: document.getElementById('f_exp').value,
       p_schedule: document.getElementById('f_schedule').value,
@@ -632,11 +662,12 @@
     }
 
     e.target.reset();
+    systemOtherWrap.style.display = 'none';
+    systemOtherInput.disabled = true;
     overlay.classList.remove('open');
     alert('Thanks! Your listing is pending review and will appear once approved. Check "My submissions" anytime to see its status.');
   });
 
-  // ---- My submissions panel ----
   const myListingsOverlay = document.getElementById('myListingsOverlay');
   const myListingsBody = document.getElementById('myListingsBody');
 
@@ -687,9 +718,6 @@
     if (e.target === myListingsOverlay) myListingsOverlay.classList.remove('open');
   });
 
-  // Shows the real site content. Used both as the normal "site is open" path
-  // and as the safety-net fallback if anything goes wrong -- we never want
-  // a blank page, so failures default to showing the real site.
   function showRealSite() {
     document.getElementById('maintenanceScreen').style.display = 'none';
     document.getElementById('siteContent').style.display = 'block';
@@ -701,10 +729,6 @@
     document.getElementById('siteContent').style.display = 'none';
   }
 
-  // Safety net: if the maintenance check hasn't resolved within 4 seconds
-  // (slow network, hung request, etc.), stop waiting. Defaults to CLOSED --
-  // the maintenance screen is already showing by default, so this just
-  // confirms we're not left in a broken in-between state.
   let decided = false;
   const safetyTimer = setTimeout(() => {
     if (!decided) {
@@ -722,7 +746,7 @@
         .eq('id', 1)
         .single();
 
-      if (decided) return; // safety timer already fired, don't double-run
+      if (decided) return;
       clearTimeout(safetyTimer);
       decided = true;
 

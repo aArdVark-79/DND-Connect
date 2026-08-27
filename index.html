@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -514,25 +513,12 @@
 <div class="modal-overlay" id="postOverlay">
   <div class="modal">
 
-    <div class="form-step active" id="stepCode">
-      <h2>Get your ID</h2>
-      <p class="note">Your ID links your listings together so you can find and edit them later. Already have one? Enter it below. Otherwise, leave it blank to get a new one.</p>
-      <div class="field">
-        <label>Your ID (optional)</label>
-        <input type="text" id="codeInput" placeholder="e.g. 482XYZ" maxlength="6" style="text-transform:uppercase;">
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn-cancel" id="cancelStepCode">Cancel</button>
-        <button type="button" class="btn-submit" id="continueStepCode">Continue</button>
-      </div>
-    </div>
-
-    <div class="form-step" id="stepNewCode">
+    <div class="form-step active" id="stepNewCode">
       <h2>Your new ID</h2>
-      <p class="note">Save this somewhere safe — it's the only way to find or edit your listings later. There are no accounts or passwords, just this code.</p>
-      <div class="code-display" id="generatedCodeDisplay">------</div>
+      <p class="note">We'll generate a fresh ID for you — save it somewhere safe, it's the only way to find or edit your listings later. There are no accounts or passwords, just this code.</p>
+      <div class="code-display" id="generatedCodeDisplay">Generating...</div>
       <div class="modal-actions">
-        <button type="button" class="btn-cancel" id="backFromNewCode">Back</button>
+        <button type="button" class="btn-cancel" id="backFromNewCode">Cancel</button>
         <button type="button" class="btn-submit" id="continueFromNewCode">I've saved it — continue</button>
       </div>
     </div>
@@ -727,54 +713,47 @@
 
   // ============ POST FLOW: get/generate ID -> fill form ============
   const postOverlay = document.getElementById('postOverlay');
-  const stepCode = document.getElementById('stepCode');
   const stepNewCode = document.getElementById('stepNewCode');
   const stepDetails = document.getElementById('stepDetails');
-  const codeInput = document.getElementById('codeInput');
   const generatedCodeDisplay = document.getElementById('generatedCodeDisplay');
   const postingAsCode = document.getElementById('postingAsCode');
 
   let currentCode = null;
 
   function showFormStep(el) {
-    [stepCode, stepNewCode, stepDetails].forEach(s => s.classList.remove('active'));
+    [stepNewCode, stepDetails].forEach(s => s.classList.remove('active'));
     el.classList.add('active');
   }
 
-  function openPostFlow(prefillCode) {
-    codeInput.value = '';
-    showFormStep(stepCode);
+  async function openPostFlow(prefillCode) {
     postOverlay.classList.add('open');
+
+    // Only ever reuse a code that was already verified real via a
+    // successful "My submissions" lookup -- never accept typed-in codes
+    // here, so a mistyped code can't silently become a brand new profile.
     if (prefillCode) {
       currentCode = prefillCode;
       postingAsCode.textContent = prefillCode;
       showFormStep(stepDetails);
-    }
-  }
-
-  document.getElementById('openPostFlow').addEventListener('click', () => openPostFlow());
-  document.getElementById('cancelStepCode').addEventListener('click', () => postOverlay.classList.remove('open'));
-  postOverlay.addEventListener('click', (e) => { if (e.target === postOverlay) postOverlay.classList.remove('open'); });
-
-  document.getElementById('continueStepCode').addEventListener('click', async () => {
-    const typed = codeInput.value.trim().toUpperCase();
-    if (typed) {
-      currentCode = typed;
-      postingAsCode.textContent = currentCode;
-      showFormStep(stepDetails);
       return;
     }
+
+    showFormStep(stepNewCode);
+    generatedCodeDisplay.textContent = 'Generating...';
     const { data, error } = await window.supabase.rpc('generate_profile_code');
     if (error) {
       alert('Could not generate an ID: ' + error.message);
+      postOverlay.classList.remove('open');
       return;
     }
     currentCode = data;
     generatedCodeDisplay.textContent = currentCode;
-    showFormStep(stepNewCode);
-  });
+  }
 
-  document.getElementById('backFromNewCode').addEventListener('click', () => showFormStep(stepCode));
+  document.getElementById('openPostFlow').addEventListener('click', () => openPostFlow());
+  postOverlay.addEventListener('click', (e) => { if (e.target === postOverlay) postOverlay.classList.remove('open'); });
+
+  document.getElementById('backFromNewCode').addEventListener('click', () => postOverlay.classList.remove('open'));
   document.getElementById('continueFromNewCode').addEventListener('click', () => {
     postingAsCode.textContent = currentCode;
     showFormStep(stepDetails);

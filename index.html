@@ -465,7 +465,7 @@
   </div>
 </div>
 
-<script>
+<script type="module">
   // Listings now live in Supabase, not in a local array.
   // This starts empty and is filled by loadListings() below.
   let listings = [];
@@ -626,12 +626,10 @@
       decided = true;
 
       if (error) {
-        alert('DEBUG - Could not read setting. Error: ' + error.message + ' | Code: ' + error.code);
+        console.error('Could not read maintenance setting:', error.message, error.code);
         showMaintenanceScreen();
         return;
       }
-
-      alert('DEBUG - Read succeeded. maintenance value is: ' + data.maintenance + ' (type: ' + typeof data.maintenance + ')');
 
       if (data.maintenance) {
         showMaintenanceScreen();
@@ -639,7 +637,7 @@
         showRealSite();
       }
     } catch (err) {
-      alert('DEBUG - Unexpected exception: ' + err.message);
+      console.error('Unexpected exception checking maintenance status:', err.message);
       if (decided) return;
       clearTimeout(safetyTimer);
       decided = true;

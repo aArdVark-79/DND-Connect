@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -429,6 +428,51 @@
     margin-top: 10px;
   }
 
+  .interest-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 7px 14px;
+    border-radius: 3px;
+    border: 1px solid var(--ink);
+    background: var(--card-bg);
+    color: var(--ink);
+    cursor: pointer;
+    margin-top: 14px;
+    transition: background 0.15s ease, color 0.15s ease;
+  }
+  .interest-btn.active {
+    background: var(--oxblood);
+    color: var(--parchment);
+    border-color: var(--oxblood);
+  }
+
+  .role-section summary {
+    font-family: 'Spectral SC', serif;
+    font-size: 20px;
+    cursor: pointer;
+    padding: 12px 0;
+    border-bottom: 2px solid var(--ink);
+    margin-bottom: 16px;
+  }
+  .role-section { margin-bottom: 10px; }
+  .interest-subheading {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-soft);
+    margin: 18px 0 10px;
+  }
+  .interest-read-card {
+    background: var(--parchment-dark);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 14px 16px;
+    margin-bottom: 10px;
+    font-size: 13.5px;
+  }
+  .interest-read-card .card-name { font-size: 17px; margin: 2px 0 6px; }
+
   footer {
     border-top: 1px solid var(--line);
     padding: 24px 0 40px;
@@ -705,6 +749,11 @@
 
   // ============ BOARD: filters, sorting, rendering ============
   let listings = [];
+  let myInterestIds = new Set(); // listing IDs this browser's verified visitor has already expressed interest in
+
+  // Cached once verified within this session, so repeat clicks don't re-prompt
+  let visitorCode = null;
+  let visitorAuthValue = null;
 
   const grid = document.getElementById('grid');
   const countLine = document.getElementById('countLine');
@@ -782,6 +831,9 @@
         </div>
         ${l.bio ? `<p class="card-bio">${escapeHtml(l.bio)}</p>` : ''}
         ${l.contact ? `<p class="card-bio"><strong>Contact:</strong> ${escapeHtml(l.contact)}</p>` : ''}
+        <button class="interest-btn ${myInterestIds.has(l.id) ? 'active' : ''}" data-listing-id="${l.id}">
+          ${myInterestIds.has(l.id) ? '♥ Interested' : '♡ Interested'}
+        </button>
       `;
       grid.appendChild(card);
     });
@@ -805,7 +857,96 @@
     filterToggleBtn.textContent = isOpen ? 'Filters ▴' : 'Filters ▾';
   });
 
-  // ============ POST FLOW: auto-generate ID -> fill form ============
+  // ============ INTEREST TOGGLE ============
+  const interestAuthOverlay = document.getElementById('interestAuthOverlay');
+  const interestAuthNote = document.getElementById('interestAuthNote');
+  const interestCodeFieldWrap = document.getElementById('interestCodeFieldWrap');
+  const interestCodeInput = document.getElementById('interestCodeInput');
+  const interestAuthFieldWrap = document.getElementById('interestAuthFieldWrap');
+  const interestAuthLabel = document.getElementById('interestAuthLabel');
+  const interestAuthInput = document.getElementById('interestAuthInput');
+
+  let interestPendingTargetId = null;
+  let interestStage = 'code'; // 'code' -> 'auth'
+  let interestPendingCode = null;
+  let interestPendingAuthType = null;
+
+  document.addEventListener('click', async (e) => {
+    const btn = e.target.closest('.interest-btn');
+    if (!btn) return;
+    const targetId = btn.dataset.listingId;
+
+    if (visitorCode && visitorAuthValue) {
+      await doToggle(targetId, visitorCode, visitorAuthValue);
+      return;
+    }
+
+    interestPendingTargetId = targetId;
+    interestStage = 'code';
+    interestCodeInput.value = '';
+    interestAuthInput.value = '';
+    interestCodeFieldWrap.style.display = 'block';
+    interestAuthFieldWrap.style.display = 'none';
+    interestAuthNote.textContent = 'Enter your ID to express interest.';
+    interestAuthOverlay.classList.add('open');
+  });
+
+  document.getElementById('interestAuthCancel').addEventListener('click', () => interestAuthOverlay.classList.remove('open'));
+  interestAuthOverlay.addEventListener('click', (e) => { if (e.target === interestAuthOverlay) interestAuthOverlay.classList.remove('open'); });
+
+  document.getElementById('interestAuthContinue').addEventListener('click', async () => {
+    if (interestStage === 'code') {
+      const code = interestCodeInput.value.trim().toUpperCase();
+      if (!code) { alert('Please enter your ID.'); return; }
+
+      const { data, error } = await window.supabase.rpc('get_profile_auth_info', { p_code: code });
+      if (error || !data || !data.length) {
+        alert('No ID found matching that.');
+        return;
+      }
+
+      interestPendingCode = code;
+      interestPendingAuthType = data[0].auth_type;
+      interestCodeFieldWrap.style.display = 'none';
+      interestAuthFieldWrap.style.display = 'block';
+      interestAuthLabel.textContent = interestPendingAuthType === 'pin' ? 'Enter your PIN' : (data[0].question || 'Enter your answer');
+      interestAuthInput.value = '';
+      interestStage = 'auth';
+      return;
+    }
+
+    // stage === 'auth'
+    const authValue = interestAuthInput.value.trim();
+    if (!authValue) { alert('Please enter your ' + (interestPendingAuthType === 'pin' ? 'PIN' : 'answer') + '.'); return; }
+
+    const ok = await doToggle(interestPendingTargetId, interestPendingCode, authValue);
+    if (ok) {
+      visitorCode = interestPendingCode;
+      visitorAuthValue = authValue;
+      interestAuthOverlay.classList.remove('open');
+    }
+  });
+
+  async function doToggle(targetId, code, authValue) {
+    const { data, error } = await window.supabase.rpc('toggle_interest', {
+      p_code: code,
+      p_auth_value: authValue,
+      p_target_listing_id: targetId,
+    });
+
+    if (error) {
+      alert(error.message);
+      return false;
+    }
+
+    if (data === 'added') {
+      myInterestIds.add(targetId);
+    } else {
+      myInterestIds.delete(targetId);
+    }
+    render();
+    return true;
+  }
   const postOverlay = document.getElementById('postOverlay');
   const stepChooseAuth = document.getElementById('stepChooseAuth');
   const stepNewCode = document.getElementById('stepNewCode');
@@ -1059,14 +1200,42 @@
 
   function renderMyListings(code, authValue, rows) {
     myListingsBody.innerHTML = '';
-    rows.forEach(item => myListingsBody.appendChild(buildEditCard(code, authValue, item)));
 
-    const hasRoles = rows.map(r => r.role);
-    ['dm', 'player'].forEach(role => {
-      if (!hasRoles.includes(role)) {
+    const byRole = { dm: rows.find(r => r.role === 'dm'), player: rows.find(r => r.role === 'player') };
+
+    ['player', 'dm'].forEach(role => {
+      const label = role === 'dm' ? 'Game Master' : 'Player';
+      const details = document.createElement('details');
+      details.className = 'role-section';
+      details.open = true;
+      const summary = document.createElement('summary');
+      summary.textContent = label + (byRole[role] ? '' : ' (none yet)');
+      details.appendChild(summary);
+
+      if (byRole[role]) {
+        const item = byRole[role];
+        details.appendChild(buildEditCard(code, authValue, item));
+
+        const receivedHeading = document.createElement('p');
+        receivedHeading.className = 'interest-subheading';
+        receivedHeading.textContent = 'Interest received';
+        details.appendChild(receivedHeading);
+        const receivedList = document.createElement('div');
+        receivedList.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">Loading...</p>';
+        details.appendChild(receivedList);
+        loadInterestsReceived(code, authValue, item.id, receivedList);
+
+        const sentHeading = document.createElement('p');
+        sentHeading.className = 'interest-subheading';
+        sentHeading.textContent = 'Interest sent (as ' + label + ')';
+        details.appendChild(sentHeading);
+        const sentList = document.createElement('div');
+        sentList.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">Loading...</p>';
+        details.appendChild(sentList);
+        loadInterestsSent(code, authValue, item.id, sentList);
+      } else {
         const prompt = document.createElement('div');
         prompt.className = 'missing-role-prompt';
-        const label = role === 'dm' ? 'Game Master' : 'Player';
         prompt.innerHTML = `<p>You don't have a ${label} listing under this ID yet.</p>`;
         const btn = document.createElement('button');
         btn.className = 'add-btn';
@@ -1077,8 +1246,69 @@
           document.getElementById('f_role').value = role;
         });
         prompt.appendChild(btn);
-        myListingsBody.appendChild(prompt);
+        details.appendChild(prompt);
       }
+
+      myListingsBody.appendChild(details);
+    });
+  }
+
+  function renderInterestReadCard(item, roleField, nameField, systemsField, formatsField, locationField, expField, scheduleField, bioField, contactField) {
+    const systemsText = (item[systemsField] || []).join(', ') || 'Any system';
+    const formatsText = (item[formatsField] || []).join(' / ') || 'Format flexible';
+    const div = document.createElement('div');
+    div.className = 'interest-read-card';
+    div.innerHTML = `
+      <p class="card-role ${item[roleField] === 'player' ? 'player' : ''}">${item[roleField] === 'dm' ? 'Game Master' : 'Player'}</p>
+      <p class="card-name">${escapeHtml(item[nameField])}</p>
+      <p class="card-line"><strong>${escapeHtml(systemsText)}</strong> · ${escapeHtml(formatsText)}</p>
+      <p class="card-line">${escapeHtml(item[expField])} · ${escapeHtml(item[scheduleField] || 'Schedule flexible')}</p>
+      ${item[locationField] ? `<p class="card-line">📍 ${escapeHtml(item[locationField])}</p>` : ''}
+      ${item[bioField] ? `<p class="card-bio">${escapeHtml(item[bioField])}</p>` : ''}
+      ${item[contactField] ? `<p class="card-bio"><strong>Contact:</strong> ${escapeHtml(item[contactField])}</p>` : ''}
+    `;
+    return div;
+  }
+
+  async function loadInterestsReceived(code, authValue, listingId, container) {
+    const { data, error } = await window.supabase.rpc('get_interests_received', {
+      p_code: code, p_auth_value: authValue, p_listing_id: listingId,
+    });
+    if (error) {
+      container.innerHTML = `<p class="empty" style="padding:10px 0; font-size:14px;">${escapeHtml(error.message)}</p>`;
+      return;
+    }
+    if (!data || !data.length) {
+      container.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">No interest yet.</p>';
+      return;
+    }
+    container.innerHTML = '';
+    data.forEach(item => {
+      container.appendChild(renderInterestReadCard(
+        item, 'sender_role', 'sender_name', 'sender_systems', 'sender_formats',
+        'sender_location', 'sender_exp', 'sender_schedule', 'sender_bio', 'sender_contact'
+      ));
+    });
+  }
+
+  async function loadInterestsSent(code, authValue, listingId, container) {
+    const { data, error } = await window.supabase.rpc('get_interests_sent', {
+      p_code: code, p_auth_value: authValue, p_sender_listing_id: listingId,
+    });
+    if (error) {
+      container.innerHTML = `<p class="empty" style="padding:10px 0; font-size:14px;">${escapeHtml(error.message)}</p>`;
+      return;
+    }
+    if (!data || !data.length) {
+      container.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">You haven\'t expressed interest in anything yet.</p>';
+      return;
+    }
+    container.innerHTML = '';
+    data.forEach(item => {
+      container.appendChild(renderInterestReadCard(
+        item, 'target_role', 'target_name', 'target_systems', 'target_formats',
+        'target_location', 'target_exp', 'target_schedule', 'target_bio', 'target_contact'
+      ));
     });
   }
 
@@ -1273,6 +1503,26 @@
     }
   })();
 </script>
+
+<!-- Verify identity before toggling interest on a listing -->
+<div class="modal-overlay" id="interestAuthOverlay">
+  <div class="modal">
+    <h2>Verify it's you</h2>
+    <p class="note" id="interestAuthNote">Enter your ID to express interest.</p>
+    <div class="field" id="interestCodeFieldWrap">
+      <label>Your ID</label>
+      <input type="text" id="interestCodeInput" maxlength="6" style="text-transform:uppercase;">
+    </div>
+    <div class="field" id="interestAuthFieldWrap" style="display:none;">
+      <label id="interestAuthLabel">Enter your PIN</label>
+      <input type="text" id="interestAuthInput">
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-cancel" id="interestAuthCancel">Cancel</button>
+      <button type="button" class="btn-submit" id="interestAuthContinue">Continue</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>

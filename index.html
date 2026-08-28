@@ -538,10 +538,33 @@
 <div class="modal-overlay" id="postOverlay">
   <div class="modal">
 
-    <div class="form-step active" id="stepNewCode">
+    <div class="form-step active" id="stepChooseAuth">
+      <h2>Secure your ID</h2>
+      <p class="note">Choose how you'll verify it's really you later, in case someone else guesses your ID.</p>
+      <div class="checkbox-group" style="margin-bottom:14px;">
+        <label class="checkbox-pill"><input type="radio" name="authChoice" value="pin" checked> PIN</label>
+        <label class="checkbox-pill"><input type="radio" name="authChoice" value="question"> Security question</label>
+      </div>
+      <div class="field" id="authPinWrap">
+        <label>Choose a PIN</label>
+        <input type="text" id="authPinInput" placeholder="e.g. 4821" inputmode="numeric">
+      </div>
+      <div class="field" id="authQuestionWrap" style="display:none;">
+        <label>Write your own security question</label>
+        <input type="text" id="authQuestionInput" placeholder="e.g. What was my first character's name?">
+        <label style="margin-top:10px;">Your answer</label>
+        <input type="text" id="authAnswerInput" placeholder="Answer (not case sensitive)">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-cancel" id="cancelStepAuth">Cancel</button>
+        <button type="button" class="btn-submit" id="continueStepAuth">Create my ID</button>
+      </div>
+    </div>
+
+    <div class="form-step" id="stepNewCode">
       <h2>Your new ID</h2>
-      <p class="note">We'll generate a fresh ID for you — save it somewhere safe, it's the only way to find or edit your listings later. There are no accounts or passwords, just this code.</p>
-      <div class="code-display" id="generatedCodeDisplay">Generating...</div>
+      <p class="note">Save this somewhere safe, along with your PIN or answer — both are needed to find or edit your listings later.</p>
+      <div class="code-display" id="generatedCodeDisplay">------</div>
       <div class="modal-actions">
         <button type="button" class="btn-cancel" id="backFromNewCode">Cancel</button>
         <button type="button" class="btn-submit" id="continueFromNewCode">I've saved it — continue</button>
@@ -638,6 +661,15 @@
     <div class="modal-actions">
       <button type="button" class="btn-cancel" id="closeMyListings">Close</button>
       <button type="button" class="btn-submit" id="lookupCodeBtn">Find my listings</button>
+    </div>
+    <div id="authVerifyWrap" style="display:none;">
+      <div class="field">
+        <label id="authVerifyLabel">Enter your PIN</label>
+        <input type="text" id="authVerifyInput">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-submit" id="authVerifyBtn">Verify</button>
+      </div>
     </div>
     <div id="myListingsBody" style="margin-top:20px;"></div>
   </div>
@@ -775,42 +807,93 @@
 
   // ============ POST FLOW: auto-generate ID -> fill form ============
   const postOverlay = document.getElementById('postOverlay');
+  const stepChooseAuth = document.getElementById('stepChooseAuth');
   const stepNewCode = document.getElementById('stepNewCode');
   const stepDetails = document.getElementById('stepDetails');
   const generatedCodeDisplay = document.getElementById('generatedCodeDisplay');
   const postingAsCode = document.getElementById('postingAsCode');
 
   let currentCode = null;
+  let currentAuthValue = null; // the plaintext pin or answer, kept only in memory for this session
 
   function showFormStep(el) {
-    [stepNewCode, stepDetails].forEach(s => s.classList.remove('active'));
+    [stepChooseAuth, stepNewCode, stepDetails].forEach(s => s.classList.remove('active'));
     el.classList.add('active');
   }
 
-  async function openPostFlow(prefillCode) {
+  function openPostFlow(prefillCode, prefillAuthValue) {
     postOverlay.classList.add('open');
 
+    // Only ever reuse a code+auth verified real via a successful
+    // "My submissions" lookup -- never accept a typed-in code here.
     if (prefillCode) {
       currentCode = prefillCode;
+      currentAuthValue = prefillAuthValue;
       postingAsCode.textContent = prefillCode;
       showFormStep(stepDetails);
       return;
     }
 
-    showFormStep(stepNewCode);
-    generatedCodeDisplay.textContent = 'Generating...';
-    const { data, error } = await window.supabase.rpc('generate_profile_code');
-    if (error) {
-      alert('Could not generate an ID: ' + error.message);
-      postOverlay.classList.remove('open');
-      return;
-    }
-    currentCode = data;
-    generatedCodeDisplay.textContent = currentCode;
+    // Reset the auth-setup fields each time it's opened fresh
+    document.querySelector('input[name="authChoice"][value="pin"]').checked = true;
+    document.getElementById('authPinWrap').style.display = 'block';
+    document.getElementById('authQuestionWrap').style.display = 'none';
+    document.getElementById('authPinInput').value = '';
+    document.getElementById('authQuestionInput').value = '';
+    document.getElementById('authAnswerInput').value = '';
+    showFormStep(stepChooseAuth);
   }
 
   document.getElementById('openPostFlow').addEventListener('click', () => openPostFlow());
   postOverlay.addEventListener('click', (e) => { if (e.target === postOverlay) postOverlay.classList.remove('open'); });
+  document.getElementById('cancelStepAuth').addEventListener('click', () => postOverlay.classList.remove('open'));
+
+  document.querySelectorAll('input[name="authChoice"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      const isPin = document.querySelector('input[name="authChoice"]:checked').value === 'pin';
+      document.getElementById('authPinWrap').style.display = isPin ? 'block' : 'none';
+      document.getElementById('authQuestionWrap').style.display = isPin ? 'none' : 'block';
+    });
+  });
+
+  document.getElementById('continueStepAuth').addEventListener('click', async () => {
+    const authType = document.querySelector('input[name="authChoice"]:checked').value;
+    const btn = document.getElementById('continueStepAuth');
+
+    let rpcArgs = { p_auth_type: authType, p_pin: null, p_question: null, p_answer: null };
+    let authValueToKeep = null;
+
+    if (authType === 'pin') {
+      const pin = document.getElementById('authPinInput').value.trim();
+      if (!pin) { alert('Please choose a PIN.'); return; }
+      rpcArgs.p_pin = pin;
+      authValueToKeep = pin;
+    } else {
+      const q = document.getElementById('authQuestionInput').value.trim();
+      const a = document.getElementById('authAnswerInput').value.trim();
+      if (!q || !a) { alert('Please provide both a question and an answer.'); return; }
+      rpcArgs.p_question = q;
+      rpcArgs.p_answer = a;
+      authValueToKeep = a;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Creating...';
+    const { data, error } = await window.supabase.rpc('create_profile', rpcArgs);
+    btn.disabled = false;
+    btn.textContent = 'Create my ID';
+
+    if (error) {
+      alert('Could not create your ID: ' + error.message);
+      return;
+    }
+
+    currentCode = data;
+    currentAuthValue = authValueToKeep;
+    generatedCodeDisplay.textContent = currentCode;
+    showFormStep(stepNewCode);
+  });
+
   document.getElementById('backFromNewCode').addEventListener('click', () => postOverlay.classList.remove('open'));
   document.getElementById('continueFromNewCode').addEventListener('click', () => {
     postingAsCode.textContent = currentCode;
@@ -873,6 +956,7 @@
 
     const { error } = await window.supabase.rpc('submit_listing_with_code', {
       p_code: currentCode,
+      p_auth_value: currentAuthValue,
       p_role: document.getElementById('f_role').value,
       p_name: document.getElementById('f_name').value,
       p_systems: systemsChosen,
@@ -904,9 +988,17 @@
   const myListingsOverlay = document.getElementById('myListingsOverlay');
   const myListingsBody = document.getElementById('myListingsBody');
   const lookupCodeInput = document.getElementById('lookupCodeInput');
+  const authVerifyWrap = document.getElementById('authVerifyWrap');
+  const authVerifyLabel = document.getElementById('authVerifyLabel');
+  const authVerifyInput = document.getElementById('authVerifyInput');
+
+  let lookupCode = null;
+  let lookupAuthType = null;
 
   document.getElementById('openMyListings').addEventListener('click', () => {
     lookupCodeInput.value = '';
+    authVerifyInput.value = '';
+    authVerifyWrap.style.display = 'none';
     myListingsBody.innerHTML = '';
     myListingsOverlay.classList.add('open');
   });
@@ -919,26 +1011,55 @@
       alert('Please enter your ID.');
       return;
     }
-    myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">Loading...</p>';
+    myListingsBody.innerHTML = '';
+    authVerifyWrap.style.display = 'none';
 
-    const { data, error } = await window.supabase.rpc('get_listings_by_code', { p_code: code });
+    const { data, error } = await window.supabase.rpc('get_profile_auth_info', { p_code: code });
 
-    if (error) {
-      myListingsBody.innerHTML = `<p class="empty" style="padding:20px 0;">Could not look that up: ${escapeHtml(error.message)}</p>`;
+    if (error || !data || !data.length) {
+      myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">No ID found matching that. Double check it, or post your first listing.</p>';
       return;
     }
 
-    if (!data || !data.length) {
-      myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">No listings found for that ID. Double check it, or post your first listing.</p>';
-      return;
-    }
-
-    renderMyListings(code, data);
+    lookupCode = code;
+    lookupAuthType = data[0].auth_type;
+    authVerifyLabel.textContent = lookupAuthType === 'pin' ? 'Enter your PIN' : (data[0].question || 'Enter your answer');
+    authVerifyInput.value = '';
+    authVerifyWrap.style.display = 'block';
   });
 
-  function renderMyListings(code, rows) {
+  document.getElementById('authVerifyBtn').addEventListener('click', async () => {
+    const authValue = authVerifyInput.value.trim();
+    if (!authValue) {
+      alert('Please enter your ' + (lookupAuthType === 'pin' ? 'PIN' : 'answer') + '.');
+      return;
+    }
+
+    myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">Loading...</p>';
+
+    const { data, error } = await window.supabase.rpc('get_listings_by_code', {
+      p_code: lookupCode,
+      p_auth_value: authValue,
+    });
+
+    if (error) {
+      myListingsBody.innerHTML = `<p class="empty" style="padding:20px 0;">${escapeHtml(error.message)}</p>`;
+      return;
+    }
+
+    authVerifyWrap.style.display = 'none';
+
+    if (!data || !data.length) {
+      myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">No listings found under that ID yet.</p>';
+      return;
+    }
+
+    renderMyListings(lookupCode, authValue, data);
+  });
+
+  function renderMyListings(code, authValue, rows) {
     myListingsBody.innerHTML = '';
-    rows.forEach(item => myListingsBody.appendChild(buildEditCard(code, item)));
+    rows.forEach(item => myListingsBody.appendChild(buildEditCard(code, authValue, item)));
 
     const hasRoles = rows.map(r => r.role);
     ['dm', 'player'].forEach(role => {
@@ -952,7 +1073,7 @@
         btn.textContent = `+ Add a ${label} listing`;
         btn.addEventListener('click', () => {
           myListingsOverlay.classList.remove('open');
-          openPostFlow(code);
+          openPostFlow(code, authValue);
           document.getElementById('f_role').value = role;
         });
         prompt.appendChild(btn);
@@ -961,7 +1082,7 @@
     });
   }
 
-  function buildEditCard(code, item) {
+  function buildEditCard(code, authValue, item) {
     const uid = item.id.replace(/-/g, '_');
     const card = document.createElement('div');
     card.className = 'edit-card';
@@ -1048,7 +1169,7 @@
     });
 
     card.querySelector('[data-action="cancel"]').addEventListener('click', () => {
-      card.replaceWith(buildEditCard(code, item));
+      card.replaceWith(buildEditCard(code, authValue, item));
     });
 
     card.querySelector('[data-action="save"]').addEventListener('click', async () => {
@@ -1072,6 +1193,7 @@
 
       const { data, error } = await window.supabase.rpc('update_my_listing', {
         p_code: code,
+        p_auth_value: authValue,
         p_id: item.id,
         p_name: card.querySelector(`#e_name_${uid}`).value,
         p_systems: systemsChosen,
@@ -1093,7 +1215,7 @@
 
       const updated = Array.isArray(data) ? data[0] : data;
       alert('Saved! This listing is back in the review queue since it was edited.');
-      card.replaceWith(buildEditCard(code, updated));
+      card.replaceWith(buildEditCard(code, authValue, updated));
     });
 
     return card;

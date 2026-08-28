@@ -506,6 +506,223 @@
     .actions-row .add-btn { flex: 1; }
     select, input[type="text"] { width: 100%; }
   }
+
+  /* ============ THE BOOK ============ */
+  .book-modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(20, 16, 10, 0.6);
+    z-index: 30;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .book-modal-overlay.open { display: flex; }
+
+  .book-frame {
+    position: relative;
+    width: 100%;
+    max-width: 980px;
+    max-height: 92vh;
+    display: flex;
+    align-items: stretch;
+  }
+
+  .book-close {
+    position: absolute;
+    top: -14px;
+    right: -14px;
+    z-index: 6;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    border: 2px solid var(--ink);
+    background: var(--parchment);
+    color: var(--ink);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+  }
+
+  .book-outer {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    padding: 22px 32px 26px;
+    background: linear-gradient(180deg, #3a2f22, #241c14);
+    border-radius: 10px;
+    box-shadow: 0 30px 60px -20px rgba(0,0,0,0.55), inset 0 0 0 1px rgba(255,255,255,0.04);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .book-label {
+    text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--gold-bright);
+    letter-spacing: 0.1em;
+    font-size: 11.5px;
+    text-transform: uppercase;
+    margin: 0 0 12px;
+    opacity: 0.9;
+  }
+
+  .book {
+    position: relative;
+    flex: 1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    min-height: 0;
+    border-radius: 3px;
+    box-shadow: 0 18px 40px -14px rgba(0,0,0,0.5);
+  }
+
+  .page {
+    position: relative;
+    padding: 30px 28px 26px;
+    overflow-y: auto;
+    transition: opacity 0.25s ease;
+  }
+  .page.fading { opacity: 0; }
+
+  .page-left {
+    background: linear-gradient(90deg, rgba(0,0,0,0.05), transparent 36px), var(--page-l);
+    border-radius: 3px 0 0 3px;
+    filter: drop-shadow(2px 0 0 rgba(42,36,26,0.06));
+  }
+  .page-right {
+    background: linear-gradient(270deg, rgba(0,0,0,0.05), transparent 36px), var(--page-r);
+    border-radius: 0 3px 3px 0;
+    filter: drop-shadow(-2px 0 0 rgba(42,36,26,0.06));
+  }
+  .page-left {
+    clip-path: polygon(
+      0% 0%, 98% 0%, 95% 5%, 100% 10%, 96% 15%, 99% 20%, 94% 25%, 100% 30%,
+      97% 35%, 95% 40%, 99% 45%, 96% 50%, 100% 55%, 94% 60%, 98% 65%,
+      96% 70%, 100% 75%, 95% 80%, 99% 85%, 97% 90%, 100% 95%, 96% 100%, 0% 100%
+    );
+  }
+  .page-right {
+    clip-path: polygon(
+      100% 0%, 100% 100%, 4% 100%, 6% 95%, 1% 90%, 5% 85%, 3% 80%, 6% 75%,
+      0% 70%, 4% 65%, 2% 60%, 6% 55%, 1% 50%, 5% 45%, 3% 40%, 0% 35%,
+      6% 30%, 1% 25%, 4% 20%, 2% 15%, 5% 10%, 3% 5%, 2% 0%
+    );
+  }
+
+  .page-interstitial {
+    display: none;
+    grid-column: 1 / -1;
+    background: var(--page-l);
+    border-radius: 3px;
+    padding: 34px 20px;
+    overflow-y: auto;
+  }
+  .page-interstitial .interstitial-inner { max-width: 380px; margin: 0 auto; }
+
+  .spine-shadow {
+    position: absolute;
+    top: 0; bottom: 0; left: 50%;
+    width: 80px;
+    transform: translateX(-50%);
+    background: linear-gradient(90deg, transparent 0%, rgba(0,0,0,0.16) 42%, rgba(0,0,0,0.28) 50%, rgba(0,0,0,0.16) 58%, transparent 100%);
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  .page-role-flag {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 5px 10px 5px 8px;
+    border-radius: 3px;
+    margin-bottom: 12px;
+  }
+  .page-left .page-role-flag { background: rgba(61,102,80,0.14); color: var(--forest-light); }
+  .page-right .page-role-flag { background: rgba(107,39,55,0.12); color: var(--oxblood); }
+  .page-role-flag .dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+  .page h2 { font-family: 'Spectral SC', serif; font-size: 22px; margin: 0 0 4px; }
+  .page .page-sub, .page-interstitial .page-sub {
+    font-family: 'Spectral', serif; font-style: italic; font-size: 13px; color: var(--ink-soft); margin: 0 0 18px;
+  }
+  .page-interstitial h2 { font-family: 'Spectral SC', serif; font-size: 24px; margin: 0 0 4px; text-align: center; }
+
+  .quill-btn {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12.5px;
+    letter-spacing: 0.03em;
+    padding: 9px 16px;
+    border: 1px solid var(--ink);
+    border-radius: 3px;
+    background: transparent;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 4px;
+  }
+  .page-left .quill-btn:hover { background: var(--forest); color: var(--parchment); border-color: var(--forest); }
+  .page-right .quill-btn:hover { background: var(--oxblood); color: var(--parchment); border-color: var(--oxblood); }
+  .quill-btn:disabled { opacity: 0.6; cursor: default; }
+
+  .posting-note {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    background: rgba(255,255,255,0.3);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin-bottom: 14px;
+  }
+  .posting-note strong { color: var(--ink); letter-spacing: 0.08em; }
+
+  .bookmarks {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    padding-top: 60px;
+    margin-left: -1px;
+    flex-shrink: 0;
+  }
+  .bookmark {
+    position: relative;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    color: var(--parchment);
+    background: var(--ink-soft);
+    border: none;
+    cursor: pointer;
+    padding: 11px 14px 11px 18px;
+    width: 156px;
+    text-align: left;
+    clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%, 11px 50%);
+    box-shadow: 3px 3px 8px rgba(0,0,0,0.3);
+    transition: transform 0.18s ease, opacity 0.18s ease;
+    opacity: 0.82;
+  }
+  .bookmark:hover { transform: translateX(-4px); opacity: 1; }
+  .bookmark.active { transform: translateX(-9px); opacity: 1; box-shadow: 4px 4px 10px rgba(0,0,0,0.35); }
+  .bookmark[data-tab="post"] { background: var(--gold); color: var(--ink); }
+  .bookmark[data-tab="submissions"] { background: var(--forest); }
+  .bookmark[data-tab="interests"] { background: var(--oxblood); }
+
+  @media (max-width: 760px) {
+    .book-frame { flex-direction: column-reverse; max-height: 94vh; }
+    .bookmarks { flex-direction: row; padding-top: 0; margin: 0 0 10px; width: 100%; justify-content: center; }
+    .bookmark { width: auto; clip-path: none; border-radius: 4px 4px 0 0; text-align: center; }
+    .book { grid-template-columns: 1fr; overflow-y: auto; }
+    .page-left, .page-right { clip-path: none !important; filter: none !important; border-radius: 3px; max-height: none; }
+    .page-left { border-bottom: 3px dashed var(--line); }
+    .spine-shadow { display: none; }
+    .book-outer { padding: 16px; max-height: 88vh; }
+  }
 </style>
 <script type="module">
   import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
@@ -595,145 +812,24 @@
 </footer>
 </div>
 
-<!-- Post a listing: generate ID -> fill in listing -->
-<div class="modal-overlay" id="postOverlay">
-  <div class="modal">
-
-    <div class="form-step active" id="stepChooseAuth">
-      <h2>Secure your ID</h2>
-      <p class="note">Choose how you'll verify it's really you later, in case someone else guesses your ID.</p>
-      <div class="checkbox-group" style="margin-bottom:14px;">
-        <label class="checkbox-pill"><input type="radio" name="authChoice" value="pin" checked> PIN</label>
-        <label class="checkbox-pill"><input type="radio" name="authChoice" value="question"> Security question</label>
-      </div>
-      <div class="field" id="authPinWrap">
-        <label>Choose a PIN</label>
-        <input type="text" id="authPinInput" placeholder="e.g. 4821" inputmode="numeric">
-      </div>
-      <div class="field" id="authQuestionWrap" style="display:none;">
-        <label>Write your own security question</label>
-        <input type="text" id="authQuestionInput" placeholder="e.g. What was my first character's name?">
-        <label style="margin-top:10px;">Your answer</label>
-        <input type="text" id="authAnswerInput" placeholder="Answer (not case sensitive)">
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn-cancel" id="cancelStepAuth">Cancel</button>
-        <button type="button" class="btn-submit" id="continueStepAuth">Create my ID</button>
+<!-- The book: post a listing / my submissions / interests, all in one open book -->
+<div class="book-modal-overlay" id="bookOverlay">
+  <div class="book-frame">
+    <button type="button" class="book-close" id="closeBook">×</button>
+    <div class="book-outer">
+      <p class="book-label" id="bookLabel">✦ The Quest Board ✦</p>
+      <div class="book" id="book">
+        <div class="page page-left" id="pageLeft"></div>
+        <div class="spine-shadow"></div>
+        <div class="page page-right" id="pageRight"></div>
+        <div class="page-interstitial" id="pageInterstitial"><div class="interstitial-inner" id="interstitialInner"></div></div>
       </div>
     </div>
-
-    <div class="form-step" id="stepNewCode">
-      <h2>Your new ID</h2>
-      <p class="note">Save this somewhere safe, along with your PIN or answer — both are needed to find or edit your listings later.</p>
-      <div class="code-display" id="generatedCodeDisplay">------</div>
-      <div class="modal-actions">
-        <button type="button" class="btn-cancel" id="backFromNewCode">Cancel</button>
-        <button type="button" class="btn-submit" id="continueFromNewCode">I've saved it — continue</button>
-      </div>
+    <div class="bookmarks" id="bookmarks">
+      <button type="button" class="bookmark" data-tab="post">Post a listing</button>
+      <button type="button" class="bookmark" data-tab="submissions">My submissions</button>
+      <button type="button" class="bookmark" data-tab="interests">Interests</button>
     </div>
-
-    <div class="form-step" id="stepDetails">
-      <h2>Post your listing</h2>
-      <p class="posting-as">Posting under ID: <strong id="postingAsCode">------</strong></p>
-      <p class="note">Your listing is reviewed before it appears on the board — usually within a day or two.</p>
-      <form id="listingForm">
-        <div class="field">
-          <label>I am a...</label>
-          <select id="f_role">
-            <option value="dm">Game Master</option>
-            <option value="player">Player</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Name / handle</label>
-          <input type="text" id="f_name" required>
-        </div>
-
-        <div class="field">
-          <label>Game system(s) — select all that apply</label>
-          <div class="checkbox-group" id="f_systems_group">
-            <label class="checkbox-pill"><input type="checkbox" value="D&D 5e"> D&D 5e</label>
-            <label class="checkbox-pill"><input type="checkbox" value="Pathfinder 2e"> Pathfinder 2e</label>
-            <label class="checkbox-pill"><input type="checkbox" value="Call of Cthulhu"> Call of Cthulhu</label>
-            <label class="checkbox-pill"><input type="checkbox" value="Blades in the Dark"> Blades in the Dark</label>
-            <label class="checkbox-pill"><input type="checkbox" id="f_system_other_check"> Other</label>
-          </div>
-        </div>
-        <div class="field" id="f_system_other_wrap" style="display:none;">
-          <label>Name the other system(s)</label>
-          <input type="text" id="f_system_other" placeholder="e.g. Kids on Bikes, Mothership" disabled>
-          <p class="hint">Separate multiple with commas.</p>
-        </div>
-
-        <div class="field">
-          <label>Format — select all that apply</label>
-          <div class="checkbox-group">
-            <label class="checkbox-pill"><input type="checkbox" value="Online" class="f_format_check"> Online</label>
-            <label class="checkbox-pill"><input type="checkbox" value="In-person" class="f_format_check"> In-person</label>
-          </div>
-        </div>
-
-        <div class="field">
-          <label>Rough location</label>
-          <input type="text" id="f_location" placeholder="e.g. Seattle, WA or 'Online only'">
-          <p class="hint">City, region, or "Online only" — please don't include a street address.</p>
-        </div>
-
-        <div class="field">
-          <label>Experience level</label>
-          <select id="f_exp">
-            <option>New</option>
-            <option>Some experience</option>
-            <option>Veteran</option>
-          </select>
-        </div>
-        <div class="field">
-          <label>Schedule</label>
-          <input type="text" id="f_schedule" placeholder="Weeknights, Sunday afternoons...">
-        </div>
-        <div class="field">
-          <label>Short bio</label>
-          <textarea id="f_bio" placeholder="Tell people a bit about your table or what you're looking for."></textarea>
-        </div>
-        <div class="field">
-          <label>How can people reach you?</label>
-          <input type="text" id="f_contact" placeholder="Discord: yourname, or an email address" required>
-          <p class="note" style="margin-top:6px; margin-bottom:0;">Shown publicly once approved. There's no messaging on this site — only share what you're comfortable posting.</p>
-        </div>
-        <div class="modal-actions">
-          <button type="button" class="btn-cancel" id="cancelStepDetails">Cancel</button>
-          <button type="submit" class="btn-submit">Add to board</button>
-        </div>
-      </form>
-    </div>
-
-  </div>
-</div>
-
-<!-- My submissions: enter ID, view/edit listings -->
-<div class="modal-overlay" id="myListingsOverlay">
-  <div class="modal wide">
-    <h2>My submissions</h2>
-    <p class="note">Enter your ID to find and edit your listings.</p>
-    <div class="field">
-      <label>Your ID</label>
-      <input type="text" id="lookupCodeInput" placeholder="e.g. 482XYZ" maxlength="6" style="text-transform:uppercase;">
-    </div>
-    <div class="modal-actions">
-      <button type="button" class="btn-cancel" id="closeMyListings">Close</button>
-      <button type="button" class="btn-submit" id="lookupCodeBtn">Find my listings</button>
-    </div>
-    <div id="authVerifyWrap" style="display:none;">
-      <div class="field">
-        <label id="authVerifyLabel">Enter your PIN</label>
-        <input type="text" id="authVerifyInput">
-        <p class="auth-explainer">This confirms it's really you, so only you can view or edit these listings — even if someone else knows your ID.</p>
-      </div>
-      <div class="modal-actions">
-        <button type="button" class="btn-submit" id="authVerifyBtn">Verify</button>
-      </div>
-    </div>
-    <div id="myListingsBody" style="margin-top:20px;"></div>
   </div>
 </div>
 
@@ -966,115 +1062,83 @@
     render();
     return true;
   }
-  const postOverlay = document.getElementById('postOverlay');
-  const stepChooseAuth = document.getElementById('stepChooseAuth');
-  const stepNewCode = document.getElementById('stepNewCode');
-  const stepDetails = document.getElementById('stepDetails');
-  const generatedCodeDisplay = document.getElementById('generatedCodeDisplay');
-  const postingAsCode = document.getElementById('postingAsCode');
+  // ============ THE BOOK: shared state + chrome ============
+  const bookOverlay = document.getElementById('bookOverlay');
+  const bookLabel = document.getElementById('bookLabel');
+  const pageLeft = document.getElementById('pageLeft');
+  const pageRight = document.getElementById('pageRight');
+  const pageInterstitial = document.getElementById('pageInterstitial');
+  const interstitialInner = document.getElementById('interstitialInner');
+  const bookmarkBtns = document.querySelectorAll('#bookmarks .bookmark');
 
-  let currentCode = null;
-  let currentAuthValue = null; // the plaintext pin or answer, kept only in memory for this session
+  const book = {
+    tab: 'post',
+    code: null,
+    authValue: null,
+    authType: null,
+    myListings: null,   // cached rows from get_listings_by_code, null = not fetched yet
+    fetchError: null,
+    postStage: 'auth',  // 'auth' -> 'newcode' -> 'details'
+  };
 
-  function showFormStep(el) {
-    [stepChooseAuth, stepNewCode, stepDetails].forEach(s => s.classList.remove('active'));
-    el.classList.add('active');
+  function resetBookState() {
+    book.code = null;
+    book.authValue = null;
+    book.authType = null;
+    book.myListings = null;
+    book.fetchError = null;
+    book.postStage = 'auth';
   }
 
-  function openPostFlow(prefillCode, prefillAuthValue) {
-    postOverlay.classList.add('open');
-
-    // Only ever reuse a code+auth verified real via a successful
-    // "My submissions" lookup -- never accept a typed-in code here.
-    if (prefillCode) {
-      currentCode = prefillCode;
-      currentAuthValue = prefillAuthValue;
-      postingAsCode.textContent = prefillCode;
-      showFormStep(stepDetails);
-      return;
-    }
-
-    // Reset the auth-setup fields each time it's opened fresh
-    document.querySelector('input[name="authChoice"][value="pin"]').checked = true;
-    document.getElementById('authPinWrap').style.display = 'block';
-    document.getElementById('authQuestionWrap').style.display = 'none';
-    document.getElementById('authPinInput').value = '';
-    document.getElementById('authQuestionInput').value = '';
-    document.getElementById('authAnswerInput').value = '';
-    showFormStep(stepChooseAuth);
+  function showLeaves() {
+    pageInterstitial.style.display = 'none';
+    pageLeft.style.display = 'block';
+    pageRight.style.display = 'block';
+  }
+  function showInterstitial(html) {
+    pageLeft.style.display = 'none';
+    pageRight.style.display = 'none';
+    pageInterstitial.style.display = 'block';
+    interstitialInner.innerHTML = html;
   }
 
-  document.getElementById('openPostFlow').addEventListener('click', () => openPostFlow());
-  postOverlay.addEventListener('click', (e) => { if (e.target === postOverlay) postOverlay.classList.remove('open'); });
-  document.getElementById('cancelStepAuth').addEventListener('click', () => postOverlay.classList.remove('open'));
+  function setActiveBookmark(tab) {
+    bookmarkBtns.forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  }
 
-  document.querySelectorAll('input[name="authChoice"]').forEach(radio => {
-    radio.addEventListener('change', () => {
-      const isPin = document.querySelector('input[name="authChoice"]:checked').value === 'pin';
-      document.getElementById('authPinWrap').style.display = isPin ? 'block' : 'none';
-      document.getElementById('authQuestionWrap').style.display = isPin ? 'none' : 'block';
+  function switchTab(tab) {
+    book.tab = tab;
+    setActiveBookmark(tab);
+    if (tab === 'post') renderPostTab();
+    else if (tab === 'submissions') renderSubmissionsTab();
+    else renderInterestsTab();
+  }
+
+  function openBook(tab, opts) {
+    opts = opts || {};
+    if (opts.fresh) resetBookState();
+    bookOverlay.classList.add('open');
+    switchTab(tab);
+  }
+  function closeBook() {
+    bookOverlay.classList.remove('open');
+  }
+  function openPostForRole(role) {
+    book.postStage = 'details';
+    bookOverlay.classList.add('open');
+    switchTab('post');
+  }
+
+  bookmarkBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      if (btn.classList.contains('active')) return;
+      switchTab(btn.dataset.tab);
     });
   });
-
-  document.getElementById('continueStepAuth').addEventListener('click', async () => {
-    const authType = document.querySelector('input[name="authChoice"]:checked').value;
-    const btn = document.getElementById('continueStepAuth');
-
-    let rpcArgs = { p_auth_type: authType, p_pin: null, p_question: null, p_answer: null };
-    let authValueToKeep = null;
-
-    if (authType === 'pin') {
-      const pin = document.getElementById('authPinInput').value.trim();
-      if (!pin) { alert('Please choose a PIN.'); return; }
-      rpcArgs.p_pin = pin;
-      authValueToKeep = pin;
-    } else {
-      const q = document.getElementById('authQuestionInput').value.trim();
-      const a = document.getElementById('authAnswerInput').value.trim();
-      if (!q || !a) { alert('Please provide both a question and an answer.'); return; }
-      rpcArgs.p_question = q;
-      rpcArgs.p_answer = a;
-      authValueToKeep = a;
-    }
-
-    btn.disabled = true;
-    btn.textContent = 'Creating...';
-    const { data, error } = await window.supabase.rpc('create_profile', rpcArgs);
-    btn.disabled = false;
-    btn.textContent = 'Create my ID';
-
-    if (error) {
-      alert('Could not create your ID: ' + error.message);
-      return;
-    }
-
-    currentCode = data;
-    currentAuthValue = authValueToKeep;
-    generatedCodeDisplay.textContent = currentCode;
-    showFormStep(stepNewCode);
-  });
-
-  document.getElementById('backFromNewCode').addEventListener('click', () => postOverlay.classList.remove('open'));
-  document.getElementById('continueFromNewCode').addEventListener('click', () => {
-    postingAsCode.textContent = currentCode;
-    showFormStep(stepDetails);
-  });
-  document.getElementById('cancelStepDetails').addEventListener('click', () => postOverlay.classList.remove('open'));
-
-  const systemOtherCheck = document.getElementById('f_system_other_check');
-  const systemOtherWrap = document.getElementById('f_system_other_wrap');
-  const systemOtherInput = document.getElementById('f_system_other');
-
-  systemOtherCheck.addEventListener('change', () => {
-    if (systemOtherCheck.checked) {
-      systemOtherWrap.style.display = 'block';
-      systemOtherInput.disabled = false;
-    } else {
-      systemOtherWrap.style.display = 'none';
-      systemOtherInput.disabled = true;
-      systemOtherInput.value = '';
-    }
-  });
+  document.getElementById('closeBook').addEventListener('click', closeBook);
+  bookOverlay.addEventListener('click', (e) => { if (e.target === bookOverlay) closeBook(); });
+  document.getElementById('openPostFlow').addEventListener('click', () => openBook('post', { fresh: true }));
+  document.getElementById('openMyListings').addEventListener('click', () => openBook('submissions', { fresh: true }));
 
   function collectSystems(scopeEl, otherCheckEl, otherInputEl) {
     const checked = [...scopeEl.querySelectorAll('input[type="checkbox"][value]:checked')].map(c => c.value);
@@ -1084,251 +1148,343 @@
     return checked;
   }
 
-  document.getElementById('listingForm').addEventListener('submit', async (e) => {
-    e.preventDefault();
+  // ============ POST A LISTING TAB ============
+  function renderPostTab() {
+    bookLabel.textContent = (book.code && book.postStage === 'details') ? ('✦ Posting as ' + book.code + ' ✦') : '✦ The Quest Board ✦';
+    if (book.postStage === 'auth') { renderPostAuthSetup(); return; }
+    if (book.postStage === 'newcode') { renderPostNewCode(); return; }
+    renderPostDetails();
+  }
 
-    const systemsGroup = document.getElementById('f_systems_group');
-    const systemsChosen = collectSystems(systemsGroup, systemOtherCheck, systemOtherInput);
-    if (!systemsChosen.length) {
-      alert('Please select at least one game system.');
-      return;
-    }
-    if (systemOtherCheck.checked && !systemOtherInput.value.trim()) {
-      alert('Please name the other system(s), or uncheck "Other".');
-      return;
-    }
+  function renderPostAuthSetup() {
+    showInterstitial(`
+      <h2>Secure your ID</h2>
+      <p class="page-sub" style="text-align:center;">Choose how you'll verify it's really you later, in case someone else guesses your ID.</p>
+      <div class="checkbox-group" style="margin-bottom:14px; justify-content:center;">
+        <label class="checkbox-pill"><input type="radio" name="authChoice" value="pin" checked> PIN</label>
+        <label class="checkbox-pill"><input type="radio" name="authChoice" value="question"> Security question</label>
+      </div>
+      <div class="field" id="authPinWrap">
+        <label>Choose a PIN</label>
+        <input type="text" id="authPinInput" placeholder="e.g. 4821" inputmode="numeric">
+      </div>
+      <div class="field" id="authQuestionWrap" style="display:none;">
+        <label>Write your own security question</label>
+        <input type="text" id="authQuestionInput" placeholder="e.g. What was my first character's name?">
+        <label style="margin-top:10px;">Your answer</label>
+        <input type="text" id="authAnswerInput" placeholder="Answer (not case sensitive)">
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="btn-submit" id="continueStepAuth" style="flex:1;">Create my ID</button>
+      </div>
+    `);
 
-    const formatsChosen = [...document.querySelectorAll('.f_format_check:checked')].map(c => c.value);
-    if (!formatsChosen.length) {
-      alert('Please select at least one format (Online and/or In-person).');
-      return;
-    }
-
-    const locationVal = document.getElementById('f_location').value.trim();
-    if (looksLikeAddress(locationVal)) {
-      alert('That location looks like it might include a street address. Please enter just a city, neighborhood, or region instead.');
-      return;
-    }
-
-    const submitBtn = e.target.querySelector('.btn-submit');
-    submitBtn.disabled = true;
-    submitBtn.textContent = 'Submitting...';
-
-    const { error } = await window.supabase.rpc('submit_listing_with_code', {
-      p_code: currentCode,
-      p_auth_value: currentAuthValue,
-      p_role: document.getElementById('f_role').value,
-      p_name: document.getElementById('f_name').value,
-      p_systems: systemsChosen,
-      p_formats: formatsChosen,
-      p_location: locationVal,
-      p_exp: document.getElementById('f_exp').value,
-      p_schedule: document.getElementById('f_schedule').value,
-      p_bio: document.getElementById('f_bio').value,
-      p_contact: document.getElementById('f_contact').value,
+    document.querySelectorAll('input[name="authChoice"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const isPin = document.querySelector('input[name="authChoice"]:checked').value === 'pin';
+        document.getElementById('authPinWrap').style.display = isPin ? 'block' : 'none';
+        document.getElementById('authQuestionWrap').style.display = isPin ? 'none' : 'block';
+      });
     });
 
-    submitBtn.disabled = false;
-    submitBtn.textContent = 'Add to board';
+    document.getElementById('continueStepAuth').addEventListener('click', async () => {
+      const authType = document.querySelector('input[name="authChoice"]:checked').value;
+      const btn = document.getElementById('continueStepAuth');
 
-    if (error) {
-      alert(error.message);
-      console.error(error);
-      return;
-    }
+      let rpcArgs = { p_auth_type: authType, p_pin: null, p_question: null, p_answer: null };
+      let authValueToKeep = null;
 
-    e.target.reset();
-    systemOtherWrap.style.display = 'none';
-    systemOtherInput.disabled = true;
-    postOverlay.classList.remove('open');
-    alert('Thanks! Your listing is pending review. Use "My submissions" with ID ' + currentCode + ' anytime to check on it or edit it.');
-  });
-
-  // ============ MY SUBMISSIONS: look up + edit by ID ============
-  const myListingsOverlay = document.getElementById('myListingsOverlay');
-  const myListingsBody = document.getElementById('myListingsBody');
-  const lookupCodeInput = document.getElementById('lookupCodeInput');
-  const authVerifyWrap = document.getElementById('authVerifyWrap');
-  const authVerifyLabel = document.getElementById('authVerifyLabel');
-  const authVerifyInput = document.getElementById('authVerifyInput');
-
-  let lookupCode = null;
-  let lookupAuthType = null;
-
-  document.getElementById('openMyListings').addEventListener('click', () => {
-    lookupCodeInput.value = '';
-    authVerifyInput.value = '';
-    authVerifyWrap.style.display = 'none';
-    myListingsBody.innerHTML = '';
-    myListingsOverlay.classList.add('open');
-  });
-  document.getElementById('closeMyListings').addEventListener('click', () => myListingsOverlay.classList.remove('open'));
-  myListingsOverlay.addEventListener('click', (e) => { if (e.target === myListingsOverlay) myListingsOverlay.classList.remove('open'); });
-
-  document.getElementById('lookupCodeBtn').addEventListener('click', async () => {
-    const code = lookupCodeInput.value.trim().toUpperCase();
-    if (!code) {
-      alert('Please enter your ID.');
-      return;
-    }
-    myListingsBody.innerHTML = '';
-    authVerifyWrap.style.display = 'none';
-
-    const { data, error } = await window.supabase.rpc('get_profile_auth_info', { p_code: code });
-
-    if (error || !data || !data.length) {
-      myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">No ID found matching that. Double check it, or post your first listing.</p>';
-      return;
-    }
-
-    lookupCode = code;
-    lookupAuthType = data[0].auth_type;
-    authVerifyLabel.textContent = lookupAuthType === 'pin' ? 'Enter your PIN' : (data[0].question || 'Enter your answer');
-    authVerifyInput.value = '';
-    authVerifyWrap.style.display = 'block';
-  });
-
-  document.getElementById('authVerifyBtn').addEventListener('click', async () => {
-    const authValue = authVerifyInput.value.trim();
-    if (!authValue) {
-      alert('Please enter your ' + (lookupAuthType === 'pin' ? 'PIN' : 'answer') + '.');
-      return;
-    }
-
-    myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">Loading...</p>';
-
-    const { data, error } = await window.supabase.rpc('get_listings_by_code', {
-      p_code: lookupCode,
-      p_auth_value: authValue,
-    });
-
-    if (error) {
-      myListingsBody.innerHTML = `<p class="empty" style="padding:20px 0;">${escapeHtml(error.message)}</p>`;
-      return;
-    }
-
-    authVerifyWrap.style.display = 'none';
-
-    if (!data || !data.length) {
-      myListingsBody.innerHTML = '<p class="empty" style="padding:20px 0;">No listings found under that ID yet.</p>';
-      return;
-    }
-
-    renderMyListings(lookupCode, authValue, data);
-  });
-
-  function renderMyListings(code, authValue, rows) {
-    myListingsBody.innerHTML = '';
-
-    const byRole = { dm: rows.find(r => r.role === 'dm'), player: rows.find(r => r.role === 'player') };
-
-    ['player', 'dm'].forEach(role => {
-      const label = role === 'dm' ? 'Game Master' : 'Player';
-      const details = document.createElement('details');
-      details.className = 'role-section';
-      details.open = true;
-      const summary = document.createElement('summary');
-      summary.textContent = label + (byRole[role] ? '' : ' (none yet)');
-      details.appendChild(summary);
-
-      if (byRole[role]) {
-        const item = byRole[role];
-        details.appendChild(buildEditCard(code, authValue, item));
-
-        const receivedHeading = document.createElement('p');
-        receivedHeading.className = 'interest-subheading';
-        receivedHeading.textContent = 'Interest received';
-        details.appendChild(receivedHeading);
-        const receivedList = document.createElement('div');
-        receivedList.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">Loading...</p>';
-        details.appendChild(receivedList);
-        loadInterestsReceived(code, authValue, item.id, receivedList);
-
-        const sentHeading = document.createElement('p');
-        sentHeading.className = 'interest-subheading';
-        sentHeading.textContent = 'Interest sent (as ' + label + ')';
-        details.appendChild(sentHeading);
-        const sentList = document.createElement('div');
-        sentList.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">Loading...</p>';
-        details.appendChild(sentList);
-        loadInterestsSent(code, authValue, item.id, sentList);
+      if (authType === 'pin') {
+        const pin = document.getElementById('authPinInput').value.trim();
+        if (!pin) { alert('Please choose a PIN.'); return; }
+        rpcArgs.p_pin = pin;
+        authValueToKeep = pin;
       } else {
-        const prompt = document.createElement('div');
-        prompt.className = 'missing-role-prompt';
-        prompt.innerHTML = `<p>You don't have a ${label} listing under this ID yet.</p>`;
-        const btn = document.createElement('button');
-        btn.className = 'add-btn';
-        btn.textContent = `+ Add a ${label} listing`;
-        btn.addEventListener('click', () => {
-          myListingsOverlay.classList.remove('open');
-          openPostFlow(code, authValue);
-          document.getElementById('f_role').value = role;
-        });
-        prompt.appendChild(btn);
-        details.appendChild(prompt);
+        const q = document.getElementById('authQuestionInput').value.trim();
+        const a = document.getElementById('authAnswerInput').value.trim();
+        if (!q || !a) { alert('Please provide both a question and an answer.'); return; }
+        rpcArgs.p_question = q;
+        rpcArgs.p_answer = a;
+        authValueToKeep = a;
       }
 
-      myListingsBody.appendChild(details);
+      btn.disabled = true;
+      btn.textContent = 'Creating...';
+      const { data, error } = await window.supabase.rpc('create_profile', rpcArgs);
+      btn.disabled = false;
+      btn.textContent = 'Create my ID';
+
+      if (error) {
+        alert('Could not create your ID: ' + error.message);
+        return;
+      }
+
+      book.code = data;
+      book.authValue = authValueToKeep;
+      book.postStage = 'newcode';
+      renderPostTab();
     });
   }
 
-  function renderInterestReadCard(item, roleField, nameField, systemsField, formatsField, locationField, expField, scheduleField, bioField, contactField) {
-    const systemsText = (item[systemsField] || []).join(', ') || 'Any system';
-    const formatsText = (item[formatsField] || []).join(' / ') || 'Format flexible';
-    const div = document.createElement('div');
-    div.className = 'interest-read-card';
-    div.innerHTML = `
-      <p class="card-role ${item[roleField] === 'player' ? 'player' : ''}">${item[roleField] === 'dm' ? 'Game Master' : 'Player'}</p>
-      <p class="card-name">${escapeHtml(item[nameField])}</p>
-      <p class="card-line"><strong>${escapeHtml(systemsText)}</strong> · ${escapeHtml(formatsText)}</p>
-      <p class="card-line">${escapeHtml(item[expField])} · ${escapeHtml(item[scheduleField] || 'Schedule flexible')}</p>
-      ${item[locationField] ? `<p class="card-line">📍 ${escapeHtml(item[locationField])}</p>` : ''}
-      ${item[bioField] ? `<p class="card-bio">${escapeHtml(item[bioField])}</p>` : ''}
-      ${item[contactField] ? `<p class="card-bio"><strong>Contact:</strong> ${escapeHtml(item[contactField])}</p>` : ''}
+  function renderPostNewCode() {
+    showInterstitial(`
+      <h2>Your new ID</h2>
+      <p class="page-sub" style="text-align:center;">Save this somewhere safe, along with your PIN or answer — both are needed to find or edit your listings later.</p>
+      <div class="code-display">${escapeHtml(book.code)}</div>
+      <div class="modal-actions">
+        <button type="button" class="btn-submit" id="continueFromNewCode" style="flex:1;">I've saved it — continue</button>
+      </div>
+    `);
+    document.getElementById('continueFromNewCode').addEventListener('click', () => {
+      book.postStage = 'details';
+      renderPostTab();
+    });
+  }
+
+  function roleFormHTML(prefix, roleLabel) {
+    return `
+      <span class="page-role-flag"><span class="dot"></span>${roleLabel}</span>
+      <h2>${roleLabel === 'Game Master' ? "I'm running a table" : "I'm looking for a table"}</h2>
+      <p class="page-sub">Reviewed before it appears on the board — usually within a day or two.</p>
+      <div class="field"><label>Name / handle</label><input type="text" id="${prefix}_name" required></div>
+      <div class="field">
+        <label>Game system(s) — select all that apply</label>
+        <div class="checkbox-group" id="${prefix}_systems_group">
+          <label class="checkbox-pill"><input type="checkbox" value="D&D 5e"> D&D 5e</label>
+          <label class="checkbox-pill"><input type="checkbox" value="Pathfinder 2e"> Pathfinder 2e</label>
+          <label class="checkbox-pill"><input type="checkbox" value="Call of Cthulhu"> Call of Cthulhu</label>
+          <label class="checkbox-pill"><input type="checkbox" value="Blades in the Dark"> Blades in the Dark</label>
+          <label class="checkbox-pill"><input type="checkbox" id="${prefix}_system_other_check"> Other</label>
+        </div>
+      </div>
+      <div class="field" id="${prefix}_system_other_wrap" style="display:none;">
+        <label>Name the other system(s)</label>
+        <input type="text" id="${prefix}_system_other" placeholder="e.g. Kids on Bikes, Mothership" disabled>
+        <p class="hint">Separate multiple with commas.</p>
+      </div>
+      <div class="field">
+        <label>Format — select all that apply</label>
+        <div class="checkbox-group">
+          <label class="checkbox-pill"><input type="checkbox" value="Online" class="${prefix}_format_check"> Online</label>
+          <label class="checkbox-pill"><input type="checkbox" value="In-person" class="${prefix}_format_check"> In-person</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Rough location</label>
+        <input type="text" id="${prefix}_location" placeholder="e.g. Seattle, WA or 'Online only'">
+        <p class="hint">City, region, or "Online only" — please don't include a street address.</p>
+      </div>
+      <div class="field">
+        <label>Experience level</label>
+        <select id="${prefix}_exp"><option>New</option><option>Some experience</option><option>Veteran</option></select>
+      </div>
+      <div class="field"><label>Schedule</label><input type="text" id="${prefix}_schedule" placeholder="Weeknights, Sunday afternoons..."></div>
+      <div class="field"><label>Short bio</label><textarea id="${prefix}_bio" placeholder="Tell people a bit about your table or what you're looking for."></textarea></div>
+      <div class="field">
+        <label>How can people reach you?</label>
+        <input type="text" id="${prefix}_contact" placeholder="Discord: yourname, or an email address" required>
+        <p class="hint">Shown publicly once approved. There's no messaging on this site — only share what you're comfortable posting.</p>
+      </div>
+      <button type="button" class="quill-btn" id="${prefix}_submit">Sign this page →</button>
     `;
-    return div;
   }
 
-  async function loadInterestsReceived(code, authValue, listingId, container) {
-    const { data, error } = await window.supabase.rpc('get_interests_received', {
-      p_code: code, p_auth_value: authValue, p_listing_id: listingId,
+  function bindPostForm(role, prefix, container) {
+    const otherCheck = container.querySelector(`#${prefix}_system_other_check`);
+    const otherWrap = container.querySelector(`#${prefix}_system_other_wrap`);
+    const otherInput = container.querySelector(`#${prefix}_system_other`);
+    otherCheck.addEventListener('change', () => {
+      if (otherCheck.checked) {
+        otherWrap.style.display = 'block';
+        otherInput.disabled = false;
+      } else {
+        otherWrap.style.display = 'none';
+        otherInput.disabled = true;
+        otherInput.value = '';
+      }
     });
-    if (error) {
-      container.innerHTML = `<p class="empty" style="padding:10px 0; font-size:14px;">${escapeHtml(error.message)}</p>`;
-      return;
-    }
-    if (!data || !data.length) {
-      container.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">No interest yet.</p>';
-      return;
-    }
-    container.innerHTML = '';
-    data.forEach(item => {
-      container.appendChild(renderInterestReadCard(
-        item, 'sender_role', 'sender_name', 'sender_systems', 'sender_formats',
-        'sender_location', 'sender_exp', 'sender_schedule', 'sender_bio', 'sender_contact'
-      ));
+
+    container.querySelector(`#${prefix}_submit`).addEventListener('click', async () => {
+      const systemsGroup = container.querySelector(`#${prefix}_systems_group`);
+      const systemsChosen = collectSystems(systemsGroup, otherCheck, otherInput);
+      if (!systemsChosen.length) { alert('Please select at least one game system.'); return; }
+      if (otherCheck.checked && !otherInput.value.trim()) { alert('Please name the other system(s), or uncheck "Other".'); return; }
+
+      const formatsChosen = [...container.querySelectorAll(`.${prefix}_format_check:checked`)].map(c => c.value);
+      if (!formatsChosen.length) { alert('Please select at least one format (Online and/or In-person).'); return; }
+
+      const locationVal = container.querySelector(`#${prefix}_location`).value.trim();
+      if (looksLikeAddress(locationVal)) {
+        alert('That location looks like it might include a street address. Please enter just a city, neighborhood, or region instead.');
+        return;
+      }
+
+      const nameVal = container.querySelector(`#${prefix}_name`).value.trim();
+      const contactVal = container.querySelector(`#${prefix}_contact`).value.trim();
+      if (!nameVal) { alert('Please enter a name or handle.'); return; }
+      if (!contactVal) { alert('Please share how people can reach you.'); return; }
+
+      const btn = container.querySelector(`#${prefix}_submit`);
+      btn.disabled = true;
+      btn.textContent = 'Submitting...';
+
+      const { error } = await window.supabase.rpc('submit_listing_with_code', {
+        p_code: book.code,
+        p_auth_value: book.authValue,
+        p_role: role,
+        p_name: nameVal,
+        p_systems: systemsChosen,
+        p_formats: formatsChosen,
+        p_location: locationVal,
+        p_exp: container.querySelector(`#${prefix}_exp`).value,
+        p_schedule: container.querySelector(`#${prefix}_schedule`).value,
+        p_bio: container.querySelector(`#${prefix}_bio`).value,
+        p_contact: contactVal,
+      });
+
+      if (error) {
+        btn.disabled = false;
+        btn.textContent = 'Sign this page →';
+        alert(error.message);
+        console.error(error);
+        return;
+      }
+
+      book.myListings = null; // stale now, refetch next time submissions/interests is opened
+      const label = role === 'dm' ? 'Game Master' : 'Player';
+      container.innerHTML = `
+        <span class="page-role-flag"><span class="dot"></span>${label}</span>
+        <h2>Signed and sent</h2>
+        <p class="page-sub">Pending review — usually within a day or two. Check "My submissions" with ID ${escapeHtml(book.code)} anytime.</p>
+      `;
     });
   }
 
-  async function loadInterestsSent(code, authValue, listingId, container) {
-    const { data, error } = await window.supabase.rpc('get_interests_sent', {
-      p_code: code, p_auth_value: authValue, p_sender_listing_id: listingId,
+  function renderPostDetails() {
+    showLeaves();
+    pageLeft.innerHTML = roleFormHTML('pf', 'Player');
+    pageRight.innerHTML = roleFormHTML('gf', 'Game Master');
+    bindPostForm('player', 'pf', pageLeft);
+    bindPostForm('dm', 'gf', pageRight);
+  }
+
+  // ============ MY SUBMISSIONS + INTERESTS: shared verify gate ============
+  function renderVerifyGate() {
+    showInterstitial(`
+      <h2>Find your listings</h2>
+      <p class="page-sub" style="text-align:center;">Enter your ID to see what you've posted.</p>
+      <div class="field"><label>Your ID</label><input type="text" id="gateCodeInput" placeholder="e.g. 482XYZ" maxlength="6" style="text-transform:uppercase;"></div>
+      <div class="modal-actions"><button type="button" class="btn-submit" id="gateFindBtn" style="flex:1;">Find my listings</button></div>
+      <div id="gateAuthWrap" style="display:none; margin-top:16px;">
+        <div class="field">
+          <label id="gateAuthLabel">Enter your PIN</label>
+          <input type="text" id="gateAuthInput">
+          <p class="auth-explainer">This confirms it's really you, so only you can view or edit these listings — even if someone else knows your ID.</p>
+        </div>
+        <div class="modal-actions"><button type="button" class="btn-submit" id="gateVerifyBtn" style="flex:1;">Verify</button></div>
+      </div>
+      <div id="gateMsg"></div>
+    `);
+
+    const gateCodeInput = document.getElementById('gateCodeInput');
+    const gateAuthWrap = document.getElementById('gateAuthWrap');
+    const gateAuthLabel = document.getElementById('gateAuthLabel');
+    const gateAuthInput = document.getElementById('gateAuthInput');
+    const gateMsg = document.getElementById('gateMsg');
+    let pendingCode = null;
+    let pendingAuthType = null;
+
+    document.getElementById('gateFindBtn').addEventListener('click', async () => {
+      const code = gateCodeInput.value.trim().toUpperCase();
+      if (!code) { alert('Please enter your ID.'); return; }
+      gateMsg.innerHTML = '';
+      gateAuthWrap.style.display = 'none';
+
+      const { data, error } = await window.supabase.rpc('get_profile_auth_info', { p_code: code });
+      if (error || !data || !data.length) {
+        gateMsg.innerHTML = '<p class="empty" style="padding:14px 0;">No ID found matching that. Double check it, or post your first listing.</p>';
+        return;
+      }
+      pendingCode = code;
+      pendingAuthType = data[0].auth_type;
+      gateAuthLabel.textContent = pendingAuthType === 'pin' ? 'Enter your PIN' : (data[0].question || 'Enter your answer');
+      gateAuthInput.value = '';
+      gateAuthWrap.style.display = 'block';
+    });
+
+    document.getElementById('gateVerifyBtn').addEventListener('click', async () => {
+      const authValue = gateAuthInput.value.trim();
+      if (!authValue) { alert('Please enter your ' + (pendingAuthType === 'pin' ? 'PIN' : 'answer') + '.'); return; }
+
+      showInterstitial('<h2>Verifying…</h2>');
+      const { data, error } = await window.supabase.rpc('get_listings_by_code', { p_code: pendingCode, p_auth_value: authValue });
+      if (error) {
+        renderVerifyGate();
+        document.getElementById('gateMsg').innerHTML = `<p class="empty" style="padding:14px 0;">${escapeHtml(error.message)}</p>`;
+        return;
+      }
+
+      book.code = pendingCode;
+      book.authValue = authValue;
+      book.authType = pendingAuthType;
+      book.myListings = data || [];
+      book.fetchError = null;
+      book.postStage = 'details';
+      switchTab(book.tab);
+    });
+  }
+
+  async function fetchMyListings() {
+    const { data, error } = await window.supabase.rpc('get_listings_by_code', {
+      p_code: book.code, p_auth_value: book.authValue,
     });
     if (error) {
-      container.innerHTML = `<p class="empty" style="padding:10px 0; font-size:14px;">${escapeHtml(error.message)}</p>`;
+      book.myListings = [];
+      book.fetchError = error.message;
+    } else {
+      book.myListings = data || [];
+      book.fetchError = null;
+    }
+  }
+
+  // ============ MY SUBMISSIONS TAB ============
+  function renderSubmissionsTab() {
+    bookLabel.textContent = book.code ? ('✦ ID ' + book.code + ' ✦') : '✦ The Quest Board ✦';
+    if (!book.code) { renderVerifyGate(); return; }
+    if (book.myListings === null) {
+      showInterstitial('<h2>Loading…</h2>');
+      fetchMyListings().then(() => renderSubmissionsTab());
       return;
     }
-    if (!data || !data.length) {
-      container.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">You haven\'t expressed interest in anything yet.</p>';
+    if (book.fetchError) {
+      showInterstitial(`<h2>Something went wrong</h2><p class="page-sub" style="text-align:center;">${escapeHtml(book.fetchError)}</p>`);
       return;
     }
-    container.innerHTML = '';
-    data.forEach(item => {
-      container.appendChild(renderInterestReadCard(
-        item, 'target_role', 'target_name', 'target_systems', 'target_formats',
-        'target_location', 'target_exp', 'target_schedule', 'target_bio', 'target_contact'
-      ));
-    });
+    showLeaves();
+    renderSubmissionsLeaf('player', pageLeft);
+    renderSubmissionsLeaf('dm', pageRight);
+  }
+
+  function renderSubmissionsLeaf(role, container) {
+    const label = role === 'dm' ? 'Game Master' : 'Player';
+    const item = book.myListings.find(r => r.role === role);
+    container.innerHTML = `
+      <span class="page-role-flag"><span class="dot"></span>${label}</span>
+      <h2>${role === 'dm' ? 'Your GM listing' : 'Your player listing'}</h2>
+    `;
+    if (item) {
+      container.appendChild(buildEditCard(book.code, book.authValue, item));
+    } else {
+      const prompt = document.createElement('div');
+      prompt.className = 'missing-role-prompt';
+      prompt.innerHTML = `<p>You don't have a ${label} listing under this ID yet.</p>`;
+      const btn = document.createElement('button');
+      btn.className = 'add-btn';
+      btn.textContent = `+ Add a ${label} listing`;
+      btn.addEventListener('click', () => openPostForRole(role));
+      prompt.appendChild(btn);
+      container.appendChild(prompt);
+    }
   }
 
   function buildEditCard(code, authValue, item) {
@@ -1343,7 +1499,6 @@
 
     card.innerHTML = `
       <span class="status-pill ${item.status}">${item.status === 'approved' ? 'Live on the board' : 'Pending review'}</span>
-      <p class="card-role ${item.role === 'player' ? 'player' : ''}">${item.role === 'dm' ? 'Game Master' : 'Player'}</p>
 
       <div class="field">
         <label>Name / handle</label>
@@ -1464,6 +1619,9 @@
       }
 
       const updated = Array.isArray(data) ? data[0] : data;
+      const idx = book.myListings.findIndex(r => r.id === updated.id);
+      if (idx !== -1) book.myListings[idx] = updated;
+
       if (updated.status === 'pending') {
         alert('Saved! Since you changed a written field, this listing is back in the review queue.');
       } else {
@@ -1473,6 +1631,120 @@
     });
 
     return card;
+  }
+
+  // ============ INTERESTS TAB ============
+  function renderInterestsTab() {
+    bookLabel.textContent = book.code ? ('✦ ID ' + book.code + ' ✦') : '✦ The Quest Board ✦';
+    if (!book.code) { renderVerifyGate(); return; }
+    if (book.myListings === null) {
+      showInterstitial('<h2>Loading…</h2>');
+      fetchMyListings().then(() => renderInterestsTab());
+      return;
+    }
+    if (book.fetchError) {
+      showInterstitial(`<h2>Something went wrong</h2><p class="page-sub" style="text-align:center;">${escapeHtml(book.fetchError)}</p>`);
+      return;
+    }
+    showLeaves();
+    renderInterestsLeaf('player', pageLeft);
+    renderInterestsLeaf('dm', pageRight);
+  }
+
+  function renderInterestsLeaf(role, container) {
+    const label = role === 'dm' ? 'Game Master' : 'Player';
+    const item = book.myListings.find(r => r.role === role);
+    container.innerHTML = `
+      <span class="page-role-flag"><span class="dot"></span>${label}</span>
+      <h2>Interest, as ${role === 'dm' ? 'a GM' : 'a player'}</h2>
+      <p class="page-sub">Who's reached toward this listing, and who it's reached toward.</p>
+    `;
+    if (!item) {
+      const p = document.createElement('p');
+      p.className = 'empty';
+      p.style.padding = '10px 0';
+      p.style.fontSize = '14px';
+      p.textContent = `You don't have a ${label} listing yet, so there's nothing to show here.`;
+      container.appendChild(p);
+      return;
+    }
+
+    const receivedHeading = document.createElement('p');
+    receivedHeading.className = 'interest-subheading';
+    receivedHeading.textContent = 'Interest received';
+    container.appendChild(receivedHeading);
+    const receivedList = document.createElement('div');
+    receivedList.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">Loading...</p>';
+    container.appendChild(receivedList);
+    loadInterestsReceived(book.code, book.authValue, item.id, receivedList);
+
+    const sentHeading = document.createElement('p');
+    sentHeading.className = 'interest-subheading';
+    sentHeading.textContent = 'Interest sent';
+    container.appendChild(sentHeading);
+    const sentList = document.createElement('div');
+    sentList.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">Loading...</p>';
+    container.appendChild(sentList);
+    loadInterestsSent(book.code, book.authValue, item.id, sentList);
+  }
+
+  function renderInterestReadCard(item, roleField, nameField, systemsField, formatsField, locationField, expField, scheduleField, bioField, contactField) {
+    const systemsText = (item[systemsField] || []).join(', ') || 'Any system';
+    const formatsText = (item[formatsField] || []).join(' / ') || 'Format flexible';
+    const div = document.createElement('div');
+    div.className = 'interest-read-card';
+    div.innerHTML = `
+      <p class="card-role ${item[roleField] === 'player' ? 'player' : ''}">${item[roleField] === 'dm' ? 'Game Master' : 'Player'}</p>
+      <p class="card-name">${escapeHtml(item[nameField])}</p>
+      <p class="card-line"><strong>${escapeHtml(systemsText)}</strong> · ${escapeHtml(formatsText)}</p>
+      <p class="card-line">${escapeHtml(item[expField])} · ${escapeHtml(item[scheduleField] || 'Schedule flexible')}</p>
+      ${item[locationField] ? `<p class="card-line">📍 ${escapeHtml(item[locationField])}</p>` : ''}
+      ${item[bioField] ? `<p class="card-bio">${escapeHtml(item[bioField])}</p>` : ''}
+      ${item[contactField] ? `<p class="card-bio"><strong>Contact:</strong> ${escapeHtml(item[contactField])}</p>` : ''}
+    `;
+    return div;
+  }
+
+  async function loadInterestsReceived(code, authValue, listingId, container) {
+    const { data, error } = await window.supabase.rpc('get_interests_received', {
+      p_code: code, p_auth_value: authValue, p_listing_id: listingId,
+    });
+    if (error) {
+      container.innerHTML = `<p class="empty" style="padding:10px 0; font-size:14px;">${escapeHtml(error.message)}</p>`;
+      return;
+    }
+    if (!data || !data.length) {
+      container.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">No interest yet.</p>';
+      return;
+    }
+    container.innerHTML = '';
+    data.forEach(item => {
+      container.appendChild(renderInterestReadCard(
+        item, 'sender_role', 'sender_name', 'sender_systems', 'sender_formats',
+        'sender_location', 'sender_exp', 'sender_schedule', 'sender_bio', 'sender_contact'
+      ));
+    });
+  }
+
+  async function loadInterestsSent(code, authValue, listingId, container) {
+    const { data, error } = await window.supabase.rpc('get_interests_sent', {
+      p_code: code, p_auth_value: authValue, p_sender_listing_id: listingId,
+    });
+    if (error) {
+      container.innerHTML = `<p class="empty" style="padding:10px 0; font-size:14px;">${escapeHtml(error.message)}</p>`;
+      return;
+    }
+    if (!data || !data.length) {
+      container.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">You haven\'t expressed interest in anything yet.</p>';
+      return;
+    }
+    container.innerHTML = '';
+    data.forEach(item => {
+      container.appendChild(renderInterestReadCard(
+        item, 'target_role', 'target_name', 'target_systems', 'target_formats',
+        'target_location', 'target_exp', 'target_schedule', 'target_bio', 'target_contact'
+      ));
+    });
   }
 
   // ============ MAINTENANCE MODE CHECK ============

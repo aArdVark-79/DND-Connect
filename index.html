@@ -35,6 +35,7 @@
     color: var(--ink);
     font-family: 'Inter', sans-serif;
     line-height: 1.5;
+    transition: background-color 0.6s ease;
   }
 
   a { color: inherit; }
@@ -85,13 +86,49 @@
     margin-right: auto;
   }
 
-  .d20 {
+  .d20-btn {
     position: absolute;
-    top: 50px;
+    top: 42px;
     right: 24px;
     width: 78px;
     height: 78px;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
     opacity: 0.9;
+    transition: transform 0.15s ease, opacity 0.15s ease;
+  }
+  .d20-btn:hover { opacity: 1; transform: scale(1.05); }
+  .d20-btn:active { transform: scale(0.96); }
+  .d20-btn.rolling svg { animation: d20-spin 0.6s linear; }
+  @keyframes d20-spin {
+    0% { transform: rotate(0deg) scale(1); }
+    50% { transform: rotate(180deg) scale(1.12); }
+    100% { transform: rotate(360deg) scale(1); }
+  }
+  .d20-btn svg { width: 100%; height: 100%; display: block; }
+  .d20-result {
+    position: absolute;
+    top: 124px;
+    right: 24px;
+    width: 130px;
+    text-align: center;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    opacity: 0;
+    transform: translateY(-4px);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+    pointer-events: none;
+  }
+  .d20-result.show { opacity: 1; transform: translateY(0); }
+  .d20-result .roll-num {
+    display: block;
+    font-family: 'Spectral SC', serif;
+    font-size: 22px;
+    line-height: 1.1;
+    margin-bottom: 2px;
   }
 
   .board {
@@ -502,7 +539,8 @@
   }
 
   @media (max-width: 640px) {
-    .d20 { display: none; }
+    .d20-btn { display: none; }
+    .d20-result { display: none; }
     .filters-row { flex-direction: column; align-items: stretch; }
     .actions-row { margin-left: 0; width: 100%; }
     .actions-row .add-btn { flex: 1; }
@@ -751,16 +789,19 @@
     <h1 class="title">The Quest Board</h1>
     <p class="subtitle">Where Game Masters post their tables, and players go looking for a seat.</p>
   </div>
-  <svg class="d20" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-    <polygon points="50,4 92,28 92,72 50,96 8,72 8,28" stroke="#2a241a" stroke-width="2.5" fill="#f1e8d0"/>
-    <polygon points="50,4 92,28 50,50" fill="#c99a3f" opacity="0.5"/>
-    <polygon points="50,4 8,28 50,50" fill="#6b2737" opacity="0.35"/>
-    <polygon points="8,28 8,72 50,50" fill="#2c4a3b" opacity="0.4"/>
-    <polygon points="92,28 92,72 50,50" fill="#a3782f" opacity="0.4"/>
-    <polygon points="50,96 8,72 50,50" fill="#3d6650" opacity="0.4"/>
-    <polygon points="50,96 92,72 50,50" fill="#82303f" opacity="0.35"/>
-    <text x="50" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="15" fill="#2a241a">20</text>
-  </svg>
+  <button type="button" class="d20-btn" id="d20Btn" title="Roll a d20">
+    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="50,4 92,28 92,72 50,96 8,72 8,28" stroke="#2a241a" stroke-width="2.5" fill="#f1e8d0"/>
+      <polygon points="50,4 92,28 50,50" fill="#c99a3f" opacity="0.5"/>
+      <polygon points="50,4 8,28 50,50" fill="#6b2737" opacity="0.35"/>
+      <polygon points="8,28 8,72 50,50" fill="#2c4a3b" opacity="0.4"/>
+      <polygon points="92,28 92,72 50,50" fill="#a3782f" opacity="0.4"/>
+      <polygon points="50,96 8,72 50,50" fill="#3d6650" opacity="0.4"/>
+      <polygon points="50,96 92,72 50,50" fill="#82303f" opacity="0.35"/>
+      <text id="d20FaceText" x="50" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="15" fill="#2a241a">20</text>
+    </svg>
+  </button>
+  <p class="d20-result" id="d20Result"><span class="roll-num" id="d20RollNum"></span><span id="d20RollLabel"></span></p>
 </header>
 
 <div class="board">
@@ -1846,6 +1887,75 @@
       })
       .subscribe();
   }
+
+  // ============ DICE ROLL ============
+  // Rolls a d20 and gives the page a subtle, temporary color wash based on
+  // the result -- purely cosmetic, no game mechanics attached to it.
+  const ROLL_FLAVOR = {
+    1: 'Critical failure...', 2: 'Ouch.', 3: 'Rough one.', 4: 'Not great.', 5: 'Meh.',
+    6: 'Could be worse.', 7: 'Shrug.', 8: 'Middling.', 9: 'Passable.', 10: 'Even odds.',
+    11: 'Decent.', 12: 'Solid.', 13: 'Pretty good.', 14: 'Nice roll!', 15: 'Great roll!',
+    16: 'Excellent!', 17: 'Fantastic!', 18: 'Superb!', 19: 'Almost perfect!', 20: 'CRITICAL HIT!',
+  };
+
+  function hexToRgb(hex) {
+    const n = parseInt(hex.replace('#', ''), 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  }
+  function lerp(a, b, t) { return Math.round(a + (b - a) * t); }
+  function mixHex(hexA, hexB, t) {
+    const a = hexToRgb(hexA), b = hexToRgb(hexB);
+    return `rgb(${lerp(a.r, b.r, t)}, ${lerp(a.g, b.g, t)}, ${lerp(a.b, b.b, t)})`;
+  }
+  // 1 -> oxblood, 10/11 -> gold, 20 -> forest, blended lightly with the
+  // base parchment so the page stays readable, not fully re-colored.
+  function colorForRoll(n) {
+    const oxblood = '#6b2737', gold = '#c99a3f', forest = '#2c4a3b', parchment = '#e5d8b4';
+    let accent;
+    if (n <= 10) accent = mixHex(oxblood, gold, (n - 1) / 9);
+    else accent = mixHex(gold, forest, (n - 11) / 9);
+    return mixHex(parchment, accent.startsWith('rgb') ? rgbToHex(accent) : accent, 0.22);
+  }
+  function rgbToHex(rgbStr) {
+    const [r, g, b] = rgbStr.match(/\d+/g).map(Number);
+    return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+  }
+
+  const d20Btn = document.getElementById('d20Btn');
+  const d20FaceText = document.getElementById('d20FaceText');
+  const d20Result = document.getElementById('d20Result');
+  const d20RollNum = document.getElementById('d20RollNum');
+  const d20RollLabel = document.getElementById('d20RollLabel');
+  let rolling = false;
+
+  d20Btn.addEventListener('click', () => {
+    if (rolling) return;
+    rolling = true;
+    d20Btn.classList.add('rolling');
+    d20Result.classList.remove('show');
+
+    let ticks = 0;
+    const flicker = setInterval(() => {
+      d20FaceText.textContent = String(1 + Math.floor(Math.random() * 20));
+      ticks++;
+      if (ticks > 8) clearInterval(flicker);
+    }, 60);
+
+    setTimeout(() => {
+      clearInterval(flicker);
+      const roll = 1 + Math.floor(Math.random() * 20);
+      d20FaceText.textContent = String(roll);
+      d20Btn.classList.remove('rolling');
+      rolling = false;
+
+      d20RollNum.textContent = roll;
+      d20RollLabel.textContent = ROLL_FLAVOR[roll];
+      d20RollNum.style.color = colorForRoll(roll).startsWith('rgb') ? rgbToHex(colorForRoll(roll)) : colorForRoll(roll);
+      d20Result.classList.add('show');
+
+      document.body.style.backgroundColor = colorForRoll(roll);
+    }, 620);
+  });
 
   // ============ MAINTENANCE MODE CHECK ============
   function showRealSite() {

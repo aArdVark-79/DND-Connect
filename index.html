@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -324,6 +325,30 @@
     color: var(--ink);
   }
   .field textarea { resize: vertical; min-height: 60px; }
+  .field .hint {
+    font-size: 11.5px;
+    color: var(--ink-soft);
+    margin-top: 5px;
+    font-family: 'IBM Plex Mono', monospace;
+  }
+
+  .checkbox-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .checkbox-pill {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--ink);
+    border-radius: 3px;
+    padding: 7px 12px;
+    background: var(--card-bg);
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .checkbox-pill input { width: auto; margin: 0; }
 
   .modal-actions {
     display: flex;
@@ -509,7 +534,7 @@
 </footer>
 </div>
 
-<!-- Post a listing: 3-step flow (enter/generate ID -> show new ID -> fill in listing) -->
+<!-- Post a listing: generate ID -> fill in listing -->
 <div class="modal-overlay" id="postOverlay">
   <div class="modal">
 
@@ -539,28 +564,37 @@
           <label>Name / handle</label>
           <input type="text" id="f_name" required>
         </div>
+
         <div class="field">
-          <label>Game system</label>
-          <select id="f_system">
-            <option value="">Select a system...</option>
-            <option value="D&D 5e">D&D 5e</option>
-            <option value="Pathfinder 2e">Pathfinder 2e</option>
-            <option value="Call of Cthulhu">Call of Cthulhu</option>
-            <option value="Blades in the Dark">Blades in the Dark</option>
-            <option value="Other">Other</option>
-          </select>
+          <label>Game system(s) — select all that apply</label>
+          <div class="checkbox-group" id="f_systems_group">
+            <label class="checkbox-pill"><input type="checkbox" value="D&D 5e"> D&D 5e</label>
+            <label class="checkbox-pill"><input type="checkbox" value="Pathfinder 2e"> Pathfinder 2e</label>
+            <label class="checkbox-pill"><input type="checkbox" value="Call of Cthulhu"> Call of Cthulhu</label>
+            <label class="checkbox-pill"><input type="checkbox" value="Blades in the Dark"> Blades in the Dark</label>
+            <label class="checkbox-pill"><input type="checkbox" id="f_system_other_check"> Other</label>
+          </div>
         </div>
         <div class="field" id="f_system_other_wrap" style="display:none;">
-          <label>Name the system</label>
-          <input type="text" id="f_system_other" placeholder="e.g. Kids on Bikes" disabled>
+          <label>Name the other system(s)</label>
+          <input type="text" id="f_system_other" placeholder="e.g. Kids on Bikes, Mothership" disabled>
+          <p class="hint">Separate multiple with commas.</p>
         </div>
+
         <div class="field">
-          <label>Format</label>
-          <select id="f_format">
-            <option>Online</option>
-            <option>In-person</option>
-          </select>
+          <label>Format — select all that apply</label>
+          <div class="checkbox-group">
+            <label class="checkbox-pill"><input type="checkbox" value="Online" class="f_format_check"> Online</label>
+            <label class="checkbox-pill"><input type="checkbox" value="In-person" class="f_format_check"> In-person</label>
+          </div>
         </div>
+
+        <div class="field">
+          <label>Rough location</label>
+          <input type="text" id="f_location" placeholder="e.g. Seattle, WA or 'Online only'">
+          <p class="hint">City, region, or "Online only" — please don't include a street address.</p>
+        </div>
+
         <div class="field">
           <label>Experience level</label>
           <select id="f_exp">
@@ -610,6 +644,33 @@
 </div>
 
 <script type="module">
+  // ============ Shared helpers ============
+  const KNOWN_SYSTEMS = ['D&D 5e', 'Pathfinder 2e', 'Call of Cthulhu', 'Blades in the Dark'];
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+  function escapeAttr(str) {
+    return (str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+  }
+
+  // Best-effort check for street addresses in the location field. Not
+  // perfect (no pattern match can be), so this is a safety net alongside
+  // manual review, not a guarantee -- it flags common address shapes
+  // (house number + street word, PO boxes, zip codes) for the person to
+  // fix before submitting.
+  function looksLikeAddress(text) {
+    if (!text) return false;
+    const t = text.trim();
+    const streetWord = /\b(street|st|avenue|ave|road|rd|boulevard|blvd|lane|ln|drive|dr|court|ct|way|place|pl|terrace|circle|cir|highway|hwy|parkway|pkwy|suite|ste|apt|apartment|unit)\b/i;
+    const hasNumber = /\d/.test(t);
+    const hasZip = /\b\d{5}(-\d{4})?\b/.test(t);
+    const hasPOBox = /\bp\.?\s*o\.?\s*box\b/i.test(t);
+    return hasPOBox || hasZip || (hasNumber && streetWord.test(t));
+  }
+
   // ============ BOARD: filters, sorting, rendering ============
   let listings = [];
 
@@ -621,14 +682,13 @@
   const formatFilter = document.getElementById('formatFilter');
   const expFilter = document.getElementById('expFilter');
   const sortOrder = document.getElementById('sortOrder');
-  const KNOWN_SYSTEMS = ['D&D 5e', 'Pathfinder 2e', 'Call of Cthulhu', 'Blades in the Dark'];
 
   let activeRole = 'all';
 
   async function loadListings() {
     const { data, error } = await window.supabase
       .from('listings')
-      .select('id, role, name, system, format, exp, schedule, bio, contact, created_at')
+      .select('id, role, name, systems, formats, location, exp, schedule, bio, contact, created_at')
       .eq('status', 'approved')
       .order('created_at', { ascending: false });
 
@@ -647,12 +707,17 @@
 
     let filtered = listings.filter(l => {
       if (activeRole !== 'all' && l.role !== activeRole) return false;
+
+      const systemsArr = l.systems || [];
       if (sys === 'Other') {
-        if (KNOWN_SYSTEMS.includes(l.system)) return false;
-      } else if (sys && l.system !== sys) {
+        if (systemsArr.every(s => KNOWN_SYSTEMS.includes(s))) return false;
+      } else if (sys && !systemsArr.includes(sys)) {
         return false;
       }
-      if (fmt && l.format !== fmt) return false;
+
+      const formatsArr = l.formats || [];
+      if (fmt && !formatsArr.includes(fmt)) return false;
+
       if (exp && l.exp !== exp) return false;
       return true;
     });
@@ -668,16 +733,19 @@
     emptyMsg.style.display = filtered.length ? 'none' : 'block';
 
     filtered.forEach(l => {
+      const systemsText = (l.systems || []).join(', ') || 'Any system';
+      const formatsText = (l.formats || []).join(' / ') || 'Format flexible';
       const card = document.createElement('div');
       card.className = 'card';
       card.innerHTML = `
         <p class="card-role ${l.role === 'player' ? 'player' : ''}">${l.role === 'dm' ? 'Game Master' : 'Player'}</p>
         <p class="card-name">${escapeHtml(l.name)}</p>
-        <p class="card-line"><strong>${escapeHtml(l.system)}</strong> · ${escapeHtml(l.format)}</p>
+        <p class="card-line"><strong>${escapeHtml(systemsText)}</strong> · ${escapeHtml(formatsText)}</p>
         <p class="card-line">${escapeHtml(l.exp)} · ${escapeHtml(l.schedule || 'Schedule flexible')}</p>
+        ${l.location ? `<p class="card-line">📍 ${escapeHtml(l.location)}</p>` : ''}
         <div class="tags">
-          <span class="tag">${escapeHtml(l.system)}</span>
-          <span class="tag">${escapeHtml(l.format)}</span>
+          ${(l.systems || []).map(s => `<span class="tag">${escapeHtml(s)}</span>`).join('')}
+          ${(l.formats || []).map(f => `<span class="tag">${escapeHtml(f)}</span>`).join('')}
           <span class="tag">${escapeHtml(l.exp)}</span>
         </div>
         ${l.bio ? `<p class="card-bio">${escapeHtml(l.bio)}</p>` : ''}
@@ -685,12 +753,6 @@
       `;
       grid.appendChild(card);
     });
-  }
-
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str || '';
-    return div.innerHTML;
   }
 
   roleToggle.addEventListener('click', (e) => {
@@ -711,7 +773,7 @@
     filterToggleBtn.textContent = isOpen ? 'Filters ▴' : 'Filters ▾';
   });
 
-  // ============ POST FLOW: get/generate ID -> fill form ============
+  // ============ POST FLOW: auto-generate ID -> fill form ============
   const postOverlay = document.getElementById('postOverlay');
   const stepNewCode = document.getElementById('stepNewCode');
   const stepDetails = document.getElementById('stepDetails');
@@ -728,9 +790,6 @@
   async function openPostFlow(prefillCode) {
     postOverlay.classList.add('open');
 
-    // Only ever reuse a code that was already verified real via a
-    // successful "My submissions" lookup -- never accept typed-in codes
-    // here, so a mistyped code can't silently become a brand new profile.
     if (prefillCode) {
       currentCode = prefillCode;
       postingAsCode.textContent = prefillCode;
@@ -752,7 +811,6 @@
 
   document.getElementById('openPostFlow').addEventListener('click', () => openPostFlow());
   postOverlay.addEventListener('click', (e) => { if (e.target === postOverlay) postOverlay.classList.remove('open'); });
-
   document.getElementById('backFromNewCode').addEventListener('click', () => postOverlay.classList.remove('open'));
   document.getElementById('continueFromNewCode').addEventListener('click', () => {
     postingAsCode.textContent = currentCode;
@@ -760,13 +818,12 @@
   });
   document.getElementById('cancelStepDetails').addEventListener('click', () => postOverlay.classList.remove('open'));
 
-  // "Other" system write-in, locked until selected
-  const systemSelect = document.getElementById('f_system');
+  const systemOtherCheck = document.getElementById('f_system_other_check');
   const systemOtherWrap = document.getElementById('f_system_other_wrap');
   const systemOtherInput = document.getElementById('f_system_other');
 
-  systemSelect.addEventListener('change', () => {
-    if (systemSelect.value === 'Other') {
+  systemOtherCheck.addEventListener('change', () => {
+    if (systemOtherCheck.checked) {
       systemOtherWrap.style.display = 'block';
       systemOtherInput.disabled = false;
     } else {
@@ -776,19 +833,39 @@
     }
   });
 
+  function collectSystems(scopeEl, otherCheckEl, otherInputEl) {
+    const checked = [...scopeEl.querySelectorAll('input[type="checkbox"][value]:checked')].map(c => c.value);
+    if (otherCheckEl.checked && otherInputEl.value.trim()) {
+      otherInputEl.value.split(',').map(s => s.trim()).filter(Boolean).forEach(s => checked.push(s));
+    }
+    return checked;
+  }
+
   document.getElementById('listingForm').addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    const chosenSystem = systemSelect.value;
-    if (!chosenSystem) {
-      alert('Please select a game system.');
+    const systemsGroup = document.getElementById('f_systems_group');
+    const systemsChosen = collectSystems(systemsGroup, systemOtherCheck, systemOtherInput);
+    if (!systemsChosen.length) {
+      alert('Please select at least one game system.');
       return;
     }
-    if (chosenSystem === 'Other' && !systemOtherInput.value.trim()) {
-      alert('Please enter the name of the game system.');
+    if (systemOtherCheck.checked && !systemOtherInput.value.trim()) {
+      alert('Please name the other system(s), or uncheck "Other".');
       return;
     }
-    const finalSystem = chosenSystem === 'Other' ? systemOtherInput.value.trim() : chosenSystem;
+
+    const formatsChosen = [...document.querySelectorAll('.f_format_check:checked')].map(c => c.value);
+    if (!formatsChosen.length) {
+      alert('Please select at least one format (Online and/or In-person).');
+      return;
+    }
+
+    const locationVal = document.getElementById('f_location').value.trim();
+    if (looksLikeAddress(locationVal)) {
+      alert('That location looks like it might include a street address. Please enter just a city, neighborhood, or region instead.');
+      return;
+    }
 
     const submitBtn = e.target.querySelector('.btn-submit');
     submitBtn.disabled = true;
@@ -798,8 +875,9 @@
       p_code: currentCode,
       p_role: document.getElementById('f_role').value,
       p_name: document.getElementById('f_name').value,
-      p_system: finalSystem,
-      p_format: document.getElementById('f_format').value,
+      p_systems: systemsChosen,
+      p_formats: formatsChosen,
+      p_location: locationVal,
       p_exp: document.getElementById('f_exp').value,
       p_schedule: document.getElementById('f_schedule').value,
       p_bio: document.getElementById('f_bio').value,
@@ -860,10 +938,7 @@
 
   function renderMyListings(code, rows) {
     myListingsBody.innerHTML = '';
-
-    rows.forEach(item => {
-      myListingsBody.appendChild(buildEditCard(code, item));
-    });
+    rows.forEach(item => myListingsBody.appendChild(buildEditCard(code, item)));
 
     const hasRoles = rows.map(r => r.role);
     ['dm', 'player'].forEach(role => {
@@ -891,8 +966,10 @@
     const card = document.createElement('div');
     card.className = 'edit-card';
 
-    const isKnown = KNOWN_SYSTEMS.includes(item.system);
-    const systemOptions = ['D&D 5e', 'Pathfinder 2e', 'Call of Cthulhu', 'Blades in the Dark'];
+    const itemSystems = item.systems || [];
+    const itemFormats = item.formats || [];
+    const customSystems = itemSystems.filter(s => !KNOWN_SYSTEMS.includes(s));
+    const hasCustom = customSystems.length > 0;
 
     card.innerHTML = `
       <span class="status-pill ${item.status}">${item.status === 'approved' ? 'Live on the board' : 'Pending review'}</span>
@@ -902,25 +979,34 @@
         <label>Name / handle</label>
         <input type="text" id="e_name_${uid}" value="${escapeAttr(item.name)}">
       </div>
+
       <div class="field">
-        <label>Game system</label>
-        <select id="e_system_${uid}">
-          <option value="">Select a system...</option>
-          ${systemOptions.map(s => `<option value="${s}" ${item.system === s ? 'selected' : ''}>${s}</option>`).join('')}
-          <option value="Other" ${!isKnown ? 'selected' : ''}>Other</option>
-        </select>
+        <label>Game system(s) — select all that apply</label>
+        <div class="checkbox-group" id="e_systems_group_${uid}">
+          ${KNOWN_SYSTEMS.map(s => `<label class="checkbox-pill"><input type="checkbox" value="${s}" ${itemSystems.includes(s) ? 'checked' : ''}> ${s}</label>`).join('')}
+          <label class="checkbox-pill"><input type="checkbox" id="e_system_other_check_${uid}" ${hasCustom ? 'checked' : ''}> Other</label>
+        </div>
       </div>
-      <div class="field" id="e_system_other_wrap_${uid}" style="display:${!isKnown ? 'block' : 'none'};">
-        <label>Name the system</label>
-        <input type="text" id="e_system_other_${uid}" value="${!isKnown ? escapeAttr(item.system) : ''}" ${isKnown ? 'disabled' : ''}>
+      <div class="field" id="e_system_other_wrap_${uid}" style="display:${hasCustom ? 'block' : 'none'};">
+        <label>Name the other system(s)</label>
+        <input type="text" id="e_system_other_${uid}" value="${escapeAttr(customSystems.join(', '))}" ${hasCustom ? '' : 'disabled'}>
+        <p class="hint">Separate multiple with commas.</p>
       </div>
+
       <div class="field">
-        <label>Format</label>
-        <select id="e_format_${uid}">
-          <option ${item.format === 'Online' ? 'selected' : ''}>Online</option>
-          <option ${item.format === 'In-person' ? 'selected' : ''}>In-person</option>
-        </select>
+        <label>Format — select all that apply</label>
+        <div class="checkbox-group">
+          <label class="checkbox-pill"><input type="checkbox" value="Online" class="e_format_check_${uid}" ${itemFormats.includes('Online') ? 'checked' : ''}> Online</label>
+          <label class="checkbox-pill"><input type="checkbox" value="In-person" class="e_format_check_${uid}" ${itemFormats.includes('In-person') ? 'checked' : ''}> In-person</label>
+        </div>
       </div>
+
+      <div class="field">
+        <label>Rough location</label>
+        <input type="text" id="e_location_${uid}" value="${escapeAttr(item.location || '')}" placeholder="e.g. Seattle, WA or 'Online only'">
+        <p class="hint">City, region, or "Online only" — please don't include a street address.</p>
+      </div>
+
       <div class="field">
         <label>Experience level</label>
         <select id="e_exp_${uid}">
@@ -947,17 +1033,17 @@
       </div>
     `;
 
-    const sysSelect = card.querySelector(`#e_system_${uid}`);
-    const sysOtherWrap = card.querySelector(`#e_system_other_wrap_${uid}`);
-    const sysOtherInput = card.querySelector(`#e_system_other_${uid}`);
-    sysSelect.addEventListener('change', () => {
-      if (sysSelect.value === 'Other') {
-        sysOtherWrap.style.display = 'block';
-        sysOtherInput.disabled = false;
+    const otherCheck = card.querySelector(`#e_system_other_check_${uid}`);
+    const otherWrap = card.querySelector(`#e_system_other_wrap_${uid}`);
+    const otherInput = card.querySelector(`#e_system_other_${uid}`);
+    otherCheck.addEventListener('change', () => {
+      if (otherCheck.checked) {
+        otherWrap.style.display = 'block';
+        otherInput.disabled = false;
       } else {
-        sysOtherWrap.style.display = 'none';
-        sysOtherInput.disabled = true;
-        sysOtherInput.value = '';
+        otherWrap.style.display = 'none';
+        otherInput.disabled = true;
+        otherInput.value = '';
       }
     });
 
@@ -966,10 +1052,19 @@
     });
 
     card.querySelector('[data-action="save"]').addEventListener('click', async () => {
-      const chosenSystem = sysSelect.value;
-      if (!chosenSystem) { alert('Please select a game system.'); return; }
-      if (chosenSystem === 'Other' && !sysOtherInput.value.trim()) { alert('Please enter the name of the game system.'); return; }
-      const finalSystem = chosenSystem === 'Other' ? sysOtherInput.value.trim() : chosenSystem;
+      const systemsGroup = card.querySelector(`#e_systems_group_${uid}`);
+      const systemsChosen = collectSystems(systemsGroup, otherCheck, otherInput);
+      if (!systemsChosen.length) { alert('Please select at least one game system.'); return; }
+      if (otherCheck.checked && !otherInput.value.trim()) { alert('Please name the other system(s), or uncheck "Other".'); return; }
+
+      const formatsChosen = [...card.querySelectorAll(`.e_format_check_${uid}:checked`)].map(c => c.value);
+      if (!formatsChosen.length) { alert('Please select at least one format.'); return; }
+
+      const locationVal = card.querySelector(`#e_location_${uid}`).value.trim();
+      if (looksLikeAddress(locationVal)) {
+        alert('That location looks like it might include a street address. Please enter just a city, neighborhood, or region instead.');
+        return;
+      }
 
       const saveBtn = card.querySelector('[data-action="save"]');
       saveBtn.disabled = true;
@@ -979,8 +1074,9 @@
         p_code: code,
         p_id: item.id,
         p_name: card.querySelector(`#e_name_${uid}`).value,
-        p_system: finalSystem,
-        p_format: card.querySelector(`#e_format_${uid}`).value,
+        p_systems: systemsChosen,
+        p_formats: formatsChosen,
+        p_location: locationVal,
         p_exp: card.querySelector(`#e_exp_${uid}`).value,
         p_schedule: card.querySelector(`#e_schedule_${uid}`).value,
         p_bio: card.querySelector(`#e_bio_${uid}`).value,
@@ -1003,17 +1099,12 @@
     return card;
   }
 
-  function escapeAttr(str) {
-    return (str || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-  }
-
   // ============ MAINTENANCE MODE CHECK ============
   function showRealSite() {
     document.getElementById('maintenanceScreen').style.display = 'none';
     document.getElementById('siteContent').style.display = 'block';
     loadListings();
   }
-
   function showMaintenanceScreen() {
     document.getElementById('maintenanceScreen').style.display = 'flex';
     document.getElementById('siteContent').style.display = 'none';

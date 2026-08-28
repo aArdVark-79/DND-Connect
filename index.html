@@ -20,6 +20,8 @@
     --card-bg: #f1e8d0;
     --line: rgba(42, 36, 26, 0.18);
     --shadow: rgba(42, 36, 26, 0.25);
+    --page-l: #f4ecd6;
+    --page-r: #efe4c6;
   }
 
   * { box-sizing: border-box; }
@@ -560,13 +562,13 @@
 
   .book-label {
     text-align: center;
-    font-family: 'IBM Plex Mono', monospace;
+    font-family: 'Spectral SC', serif;
+    font-weight: 600;
     color: var(--gold-bright);
-    letter-spacing: 0.1em;
-    font-size: 11.5px;
-    text-transform: uppercase;
-    margin: 0 0 12px;
-    opacity: 0.9;
+    letter-spacing: 0.08em;
+    font-size: 13px;
+    margin: 0 0 14px;
+    opacity: 0.85;
   }
 
   .book {
@@ -583,9 +585,9 @@
     position: relative;
     padding: 30px 28px 26px;
     overflow-y: auto;
-    transition: opacity 0.25s ease;
+    transition: opacity 0.32s ease, transform 0.32s ease;
   }
-  .page.fading { opacity: 0; }
+  .page.leaving { opacity: 0; transform: scale(0.98); }
 
   .page-left {
     background: linear-gradient(90deg, rgba(0,0,0,0.05), transparent 36px), var(--page-l);
@@ -619,7 +621,9 @@
     border-radius: 3px;
     padding: 34px 20px;
     overflow-y: auto;
+    transition: opacity 0.32s ease, transform 0.32s ease;
   }
+  .page-interstitial.leaving { opacity: 0; transform: scale(0.98); }
   .page-interstitial .interstitial-inner { max-width: 380px; margin: 0 auto; }
 
   .spine-shadow {
@@ -1038,6 +1042,12 @@
     if (ok) {
       visitorCode = interestPendingCode;
       visitorAuthValue = authValue;
+      if (!book.code) {
+        book.code = interestPendingCode;
+        book.authValue = authValue;
+        book.authType = interestPendingAuthType;
+      }
+      saveIdentity(interestPendingCode, authValue, interestPendingAuthType);
       interestAuthOverlay.classList.remove('open');
     }
   });
@@ -1090,6 +1100,57 @@
     book.postStage = 'auth';
   }
 
+  // ============ REMEMBER VERIFICATION FOR THIS VISIT ============
+  // Kept in sessionStorage: survives a page reload, but clears itself the
+  // moment the tab/browser is closed, so "verify once" only lasts for as
+  // long as the person is actually on the site.
+  const IDENTITY_KEY = 'questboard_identity_v1';
+
+  function saveIdentity(code, authValue, authType) {
+    try {
+      sessionStorage.setItem(IDENTITY_KEY, JSON.stringify({ code, authValue, authType }));
+    } catch (e) { /* storage blocked (private mode etc) — just skip remembering */ }
+  }
+
+  function clearIdentity() {
+    try { sessionStorage.removeItem(IDENTITY_KEY); } catch (e) {}
+  }
+
+  function restoreIdentity() {
+    try {
+      const raw = sessionStorage.getItem(IDENTITY_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw);
+      if (!saved || !saved.code || !saved.authValue) return;
+      book.code = saved.code;
+      book.authValue = saved.authValue;
+      book.authType = saved.authType || null;
+      visitorCode = saved.code;
+      visitorAuthValue = saved.authValue;
+    } catch (e) { /* ignore corrupt/blocked storage */ }
+  }
+
+  function signOutIdentity() {
+    clearIdentity();
+    resetBookState();
+    visitorCode = null;
+    visitorAuthValue = null;
+    switchTab(book.tab);
+  }
+
+  function setBookLabel(text) {
+    if (book.code) {
+      bookLabel.innerHTML = escapeHtml(text) +
+        ' <button type="button" id="switchIdBtn" style="background:none;border:none;text-decoration:underline;cursor:pointer;font:inherit;color:inherit;padding:0;margin-left:6px;">switch ID</button>';
+      const btn = document.getElementById('switchIdBtn');
+      if (btn) btn.addEventListener('click', (e) => { e.stopPropagation(); signOutIdentity(); });
+    } else {
+      bookLabel.textContent = text;
+    }
+  }
+
+  restoreIdentity();
+
   function showLeaves() {
     pageInterstitial.style.display = 'none';
     pageLeft.style.display = 'block';
@@ -1132,13 +1193,25 @@
   bookmarkBtns.forEach(btn => {
     btn.addEventListener('click', () => {
       if (btn.classList.contains('active')) return;
-      switchTab(btn.dataset.tab);
+      transitionToTab(btn.dataset.tab);
     });
   });
+
+  function transitionToTab(tab) {
+    pageLeft.classList.add('leaving');
+    pageRight.classList.add('leaving');
+    pageInterstitial.classList.add('leaving');
+    setTimeout(() => {
+      switchTab(tab);
+      pageLeft.classList.remove('leaving');
+      pageRight.classList.remove('leaving');
+      pageInterstitial.classList.remove('leaving');
+    }, 180);
+  }
   document.getElementById('closeBook').addEventListener('click', closeBook);
   bookOverlay.addEventListener('click', (e) => { if (e.target === bookOverlay) closeBook(); });
   document.getElementById('openPostFlow').addEventListener('click', () => openBook('post', { fresh: true }));
-  document.getElementById('openMyListings').addEventListener('click', () => openBook('submissions', { fresh: true }));
+  document.getElementById('openMyListings').addEventListener('click', () => openBook('submissions', { fresh: !book.code }));
 
   function collectSystems(scopeEl, otherCheckEl, otherInputEl) {
     const checked = [...scopeEl.querySelectorAll('input[type="checkbox"][value]:checked')].map(c => c.value);
@@ -1150,7 +1223,7 @@
 
   // ============ POST A LISTING TAB ============
   function renderPostTab() {
-    bookLabel.textContent = (book.code && book.postStage === 'details') ? ('✦ Posting as ' + book.code + ' ✦') : '✦ The Quest Board ✦';
+    setBookLabel((book.code && book.postStage === 'details') ? ('✦ Posting as ' + book.code + ' ✦') : '✦ The Quest Board ✦');
     if (book.postStage === 'auth') { renderPostAuthSetup(); return; }
     if (book.postStage === 'newcode') { renderPostNewCode(); return; }
     renderPostDetails();
@@ -1221,7 +1294,11 @@
 
       book.code = data;
       book.authValue = authValueToKeep;
+      book.authType = authType;
       book.postStage = 'newcode';
+      visitorCode = data;
+      visitorAuthValue = authValueToKeep;
+      saveIdentity(data, authValueToKeep, authType);
       renderPostTab();
     });
   }
@@ -1430,6 +1507,9 @@
       book.myListings = data || [];
       book.fetchError = null;
       book.postStage = 'details';
+      visitorCode = pendingCode;
+      visitorAuthValue = authValue;
+      saveIdentity(pendingCode, authValue, pendingAuthType);
       switchTab(book.tab);
     });
   }
@@ -1449,7 +1529,7 @@
 
   // ============ MY SUBMISSIONS TAB ============
   function renderSubmissionsTab() {
-    bookLabel.textContent = book.code ? ('✦ ID ' + book.code + ' ✦') : '✦ The Quest Board ✦';
+    setBookLabel(book.code ? ('✦ ID ' + book.code + ' ✦') : '✦ The Quest Board ✦');
     if (!book.code) { renderVerifyGate(); return; }
     if (book.myListings === null) {
       showInterstitial('<h2>Loading…</h2>');
@@ -1635,7 +1715,7 @@
 
   // ============ INTERESTS TAB ============
   function renderInterestsTab() {
-    bookLabel.textContent = book.code ? ('✦ ID ' + book.code + ' ✦') : '✦ The Quest Board ✦';
+    setBookLabel(book.code ? ('✦ ID ' + book.code + ' ✦') : '✦ The Quest Board ✦');
     if (!book.code) { renderVerifyGate(); return; }
     if (book.myListings === null) {
       showInterstitial('<h2>Loading…</h2>');
@@ -1747,11 +1827,32 @@
     });
   }
 
+  // ============ LIVE UPDATES: refresh the board without a reload ============
+  // Listens for any change to the listings table (e.g. admin approves/
+  // rejects a submission, or someone edits their own listing back into
+  // review) and quietly re-fetches the board. Requires Realtime to be
+  // turned on for the "listings" table in the Supabase dashboard
+  // (Database → Replication) — this code alone can't enable that.
+  let realtimeSubscribed = false;
+  let listingsRefreshTimer = null;
+  function subscribeToListingChanges() {
+    if (realtimeSubscribed) return;
+    realtimeSubscribed = true;
+    window.supabase
+      .channel('public:listings-board')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'listings' }, () => {
+        clearTimeout(listingsRefreshTimer);
+        listingsRefreshTimer = setTimeout(loadListings, 400);
+      })
+      .subscribe();
+  }
+
   // ============ MAINTENANCE MODE CHECK ============
   function showRealSite() {
     document.getElementById('maintenanceScreen').style.display = 'none';
     document.getElementById('siteContent').style.display = 'block';
     loadListings();
+    subscribeToListingChanges();
   }
   function showMaintenanceScreen() {
     document.getElementById('maintenanceScreen').style.display = 'flex';

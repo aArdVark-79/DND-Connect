@@ -92,21 +92,27 @@
     padding: 20px;
     margin-bottom: 16px;
   }
-  .pending-role {
-    font-family: 'IBM Plex Mono', monospace;
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--oxblood);
-  }
   .pending-name {
     font-family: 'Spectral', serif;
     font-weight: 600;
     font-size: 20px;
-    margin: 4px 0 8px;
+    margin: 0 0 10px;
   }
-  .pending-line { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 2px; }
-  .pending-bio { font-size: 13.5px; margin-top: 10px; border-top: 1px dashed var(--line); padding-top: 10px; }
+  .pending-field { margin-bottom: 10px; }
+  .pending-field-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--oxblood);
+    margin: 0 0 2px;
+  }
+  .pending-field-value {
+    font-size: 14px;
+    color: var(--ink);
+    margin: 0;
+    white-space: pre-wrap;
+  }
 
   .actions { display: flex; gap: 10px; margin-top: 16px; }
   .actions button {
@@ -245,6 +251,16 @@
     maintenanceToggle.disabled = false;
   });
 
+  // Only the fields someone actually typed themselves -- location, schedule,
+  // bio, contact. Selections like role/system/format/experience are left out
+  // since they're not written content that needs a human read-through.
+  const WRITTEN_FIELDS = [
+    { key: 'location', label: 'Location' },
+    { key: 'schedule', label: 'Schedule' },
+    { key: 'contact', label: 'Contact' },
+    { key: 'bio', label: 'Bio' },
+  ];
+
   async function loadPending() {
     const { data, error } = await supabase
       .from('listings')
@@ -266,13 +282,19 @@
     data.forEach(item => {
       const card = document.createElement('div');
       card.className = 'pending-card';
+
+      const fieldsHtml = WRITTEN_FIELDS
+        .filter(f => item[f.key] && item[f.key].trim())
+        .map(f => `
+          <div class="pending-field">
+            <p class="pending-field-label">${f.label}</p>
+            <p class="pending-field-value">${escapeHtml(item[f.key])}</p>
+          </div>
+        `).join('');
+
       card.innerHTML = `
-        <p class="pending-role">${item.role === 'dm' ? 'Game Master' : 'Player'}</p>
         <p class="pending-name">${escapeHtml(item.name)}</p>
-        <p class="pending-line"><strong>${escapeHtml(item.system)}</strong> · ${escapeHtml(item.format)}</p>
-        <p class="pending-line">${escapeHtml(item.exp)} · ${escapeHtml(item.schedule || 'No schedule given')}</p>
-        ${item.contact ? `<p class="pending-line"><strong>Contact:</strong> ${escapeHtml(item.contact)}</p>` : ''}
-        ${item.bio ? `<p class="pending-bio">${escapeHtml(item.bio)}</p>` : ''}
+        ${fieldsHtml || '<p class="pending-field-value" style="font-style:italic; color:var(--ink-soft);">No written details provided.</p>'}
         <div class="actions">
           <button class="btn-approve" data-id="${item.id}" data-action="approve">Approve</button>
           <button class="btn-reject" data-id="${item.id}" data-action="reject">Reject</button>

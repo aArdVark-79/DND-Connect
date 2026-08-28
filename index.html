@@ -473,6 +473,23 @@
   }
   .interest-read-card .card-name { font-size: 17px; margin: 2px 0 6px; }
 
+  #authVerifyLabel, #interestAuthLabel {
+    font-family: 'Spectral', serif;
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--ink);
+    line-height: 1.4;
+    margin-bottom: 12px;
+    display: block;
+  }
+  .auth-explainer {
+    font-size: 13px;
+    color: var(--ink-soft);
+    font-family: 'IBM Plex Mono', monospace;
+    margin-top: 8px;
+    line-height: 1.5;
+  }
+
   footer {
     border-top: 1px solid var(--line);
     padding: 24px 0 40px;
@@ -710,6 +727,7 @@
       <div class="field">
         <label id="authVerifyLabel">Enter your PIN</label>
         <input type="text" id="authVerifyInput">
+        <p class="auth-explainer">This confirms it's really you, so only you can view or edit these listings — even if someone else knows your ID.</p>
       </div>
       <div class="modal-actions">
         <button type="button" class="btn-submit" id="authVerifyBtn">Verify</button>
@@ -887,7 +905,7 @@
     interestAuthInput.value = '';
     interestCodeFieldWrap.style.display = 'block';
     interestAuthFieldWrap.style.display = 'none';
-    interestAuthNote.textContent = 'Enter your ID to express interest.';
+    interestAuthNote.textContent = "Clicking Interested shares one of your own listings with this person, so they know you'd like to connect. Enter your ID to continue — we'll ask for your PIN or security answer next to confirm it's really you.";
     interestAuthOverlay.classList.add('open');
   });
 
@@ -911,6 +929,7 @@
       interestAuthFieldWrap.style.display = 'block';
       interestAuthLabel.textContent = interestPendingAuthType === 'pin' ? 'Enter your PIN' : (data[0].question || 'Enter your answer');
       interestAuthInput.value = '';
+      interestAuthNote.textContent = 'Almost there — verify it\'s you, and your interest will be sent right away.';
       interestStage = 'auth';
       return;
     }
@@ -1516,6 +1535,7 @@
     <div class="field" id="interestAuthFieldWrap" style="display:none;">
       <label id="interestAuthLabel">Enter your PIN</label>
       <input type="text" id="interestAuthInput">
+      <p class="auth-explainer">This confirms it's really you, so the person you're interested in only ever hears from real, verified people — not anyone who happened to guess or see your ID.</p>
     </div>
     <div class="modal-actions">
       <button type="button" class="btn-cancel" id="interestAuthCancel">Cancel</button>

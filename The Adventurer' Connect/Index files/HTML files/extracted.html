@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Adventurers' Board — Find a GM or Party</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@400;500;600;700&family=Spectral+SC:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<div id="maintenanceScreen" style="display:flex; min-height:100vh; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:40px;">
+  <h1 style="font-family:'Spectral SC', serif; font-size:32px; margin-bottom:10px;">Closed for testing</h1>
+  <p style="font-family:'Spectral', serif; font-style:italic; color:var(--ink-soft); max-width:400px;">The board is being set up right now. Check back soon.</p>
+</div>
+<div id="siteContent" style="display:none;">
+<header class="hero">
+  <div class="wrap">
+    <p class="eyebrow">A notice board for tabletop games</p>
+    <h1 class="title">The Quest Board</h1>
+    <p class="subtitle">Where Game Masters post their tables, and players go looking for a seat.</p>
+  </div>
+  <button type="button" class="d20-btn" id="d20Btn" title="Roll a d20">
+    <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="50,4 92,28 92,72 50,96 8,72 8,28" stroke="#2a241a" stroke-width="2.5" fill="#f1e8d0"/>
+      <polygon points="50,4 92,28 50,50" fill="#c99a3f" opacity="0.5"/>
+      <polygon points="50,4 8,28 50,50" fill="#6b2737" opacity="0.35"/>
+      <polygon points="8,28 8,72 50,50" fill="#2c4a3b" opacity="0.4"/>
+      <polygon points="92,28 92,72 50,50" fill="#a3782f" opacity="0.4"/>
+      <polygon points="50,96 8,72 50,50" fill="#3d6650" opacity="0.4"/>
+      <polygon points="50,96 92,72 50,50" fill="#82303f" opacity="0.35"/>
+      <text id="d20FaceText" x="50" y="56" text-anchor="middle" font-family="IBM Plex Mono, monospace" font-size="15" fill="#2a241a">20</text>
+    </svg>
+  </button>
+  <p class="d20-result" id="d20Result"><span class="roll-num" id="d20RollNum"></span><span id="d20RollLabel"></span></p>
+</header>
+<div class="board">
+  <div class="wrap">
+    <div class="filters-row">
+      <div class="role-toggle" id="roleToggle">
+        <button data-role="all" class="active">All</button>
+        <button data-role="dm">GMs</button>
+        <button data-role="player">Players</button>
+      </div>
+      <button class="filter-toggle-btn" id="filterToggleBtn">Filters ▾</button>
+      <div class="actions-row">
+        <button class="add-btn" id="openPostFlow">+ Post your listing</button>
+        <button class="add-btn secondary" id="openMyListings">My submissions</button>
+      </div>
+    </div>
+    <div class="filters-panel" id="filtersPanel">
+      <select id="systemFilter">
+        <option value="">Any system</option>
+        <option value="D&D 5e">D&D 5e</option>
+        <option value="Pathfinder 2e">Pathfinder 2e</option>
+        <option value="Call of Cthulhu">Call of Cthulhu</option>
+        <option value="Blades in the Dark">Blades in the Dark</option>
+        <option value="Other">Other</option>
+      </select>
+      <select id="formatFilter">
+        <option value="">Any format</option>
+        <option value="Online">Online</option>
+        <option value="In-person">In-person</option>
+      </select>
+      <select id="expFilter">
+        <option value="">Any experience</option>
+        <option value="New">New</option>
+        <option value="Some experience">Some experience</option>
+        <option value="Veteran">Veteran</option>
+      </select>
+      <select id="sortOrder">
+        <option value="recent">Most recent</option>
+        <option value="alpha">Alphabetical (A–Z)</option>
+      </select>
+    </div>
+  </div>
+</div>
+<main class="wrap">
+  <p class="count-line" id="countLine"></p>
+  <div class="grid" id="grid"></div>
+  <p class="empty" id="emptyMsg" style="display:none;">No one here yet — be the first to post a listing.</p>
+</main>
+<footer>
+  v1 — sample data only, nothing here is saved yet
+</footer>
+</div>
+<!-- The book: post a listing / my submissions / interests, all in one open book -->
+<div class="book-modal-overlay" id="bookOverlay">
+  <div class="book-frame">
+    <button type="button" class="book-close" id="closeBook">×</button>
+    <div class="book-outer">
+      <p class="book-label" id="bookLabel">✦ The Quest Board ✦</p>
+      <div class="book" id="book">
+        <div class="page page-left" id="pageLeft"></div>
+        <div class="spine-shadow"></div>
+        <div class="page page-right" id="pageRight"></div>
+        <div class="page-interstitial" id="pageInterstitial"><div class="interstitial-inner" id="interstitialInner"></div></div>
+      </div>
+    </div>
+    <div class="bookmarks" id="bookmarks">
+      <button type="button" class="bookmark" data-tab="post">Post a listing</button>
+      <button type="button" class="bookmark" data-tab="submissions">My submissions</button>
+      <button type="button" class="bookmark" data-tab="interests">Interests</button>
+    </div>
+  </div>
+</div>
+<!-- Verify identity before toggling interest on a listing -->
+<div class="modal-overlay" id="interestAuthOverlay">
+  <div class="modal">
+    <h2>Verify it's you</h2>
+    <p class="note" id="interestAuthNote">Enter your ID to express interest.</p>
+    <div class="field" id="interestCodeFieldWrap">
+      <label>Your ID</label>
+      <input type="text" id="interestCodeInput" maxlength="6" style="text-transform:uppercase;">
+    </div>
+    <div class="field" id="interestAuthFieldWrap" style="display:none;">
+      <label id="interestAuthLabel">Enter your PIN</label>
+      <input type="text" id="interestAuthInput">
+      <p class="auth-explainer">This confirms it's really you, so the person you're interested in only ever hears from real, verified people — not anyone who happened to guess or see your ID.</p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-cancel" id="interestAuthCancel">Cancel</button>
+      <button type="button" class="btn-submit" id="interestAuthContinue">Continue</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

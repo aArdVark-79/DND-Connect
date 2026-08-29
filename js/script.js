@@ -36,7 +36,10 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
   // ============ BOARD: filters, sorting, rendering ============
   let listings = [];
-  let myInterestIds = new Set(); // listing IDs this browser's verified visitor has already expressed interest in
+  // listing ID (the one requested) -> { requestId, status: 'pending' | 'accepted' }
+  // Only reflects requests sent during this browser session — same limitation
+  // the old interest tracking had.
+  let myAllyState = new Map();
 
   // Cached once verified within this session, so repeat clicks don't re-prompt
   let visitorCode = null;
@@ -56,7 +59,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
   async function loadListings() {
     const { data, error } = await window.supabase
       .from('listings')
-      .select('id, role, name, systems, formats, location, exp, schedule, bio, contact, created_at')
+      .select('id, role, name, systems, formats, location, exp, schedule, bio, created_at')
       .eq('status', 'approved')
       .order('created_at', { ascending: false });
 
@@ -117,13 +120,26 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
           <span class="tag">${escapeHtml(l.exp)}</span>
         </div>
         ${l.bio ? `<p class="card-bio">${escapeHtml(l.bio)}</p>` : ''}
-        ${l.contact ? `<p class="card-bio"><strong>Contact:</strong> ${escapeHtml(l.contact)}</p>` : ''}
-        <button class="interest-btn ${myInterestIds.has(l.id) ? 'active' : ''}" data-listing-id="${l.id}">
-          ${myInterestIds.has(l.id) ? '♥ Interested' : '♡ Interested'}
-        </button>
       `;
+      card.appendChild(buildAllyActionEl(l.id));
       grid.appendChild(card);
     });
+  }
+
+  function buildAllyActionEl(listingId) {
+    const state = myAllyState.get(listingId);
+    const wrap = document.createElement('div');
+    if (!state) {
+      wrap.innerHTML = `<button class="interest-btn request-btn" data-listing-id="${listingId}">⚔ Request ally</button>`;
+    } else if (state.status === 'pending') {
+      wrap.innerHTML = `
+        <p class="card-line">Ally request sent — pending</p>
+        <button class="interest-btn cancel-request-btn" data-request-id="${state.requestId}" data-listing-id="${listingId}">Cancel request</button>
+      `;
+    } else {
+      wrap.innerHTML = `<p class="card-line">✓ You're allies — see the Allies page in the book</p>`;
+    }
+    return wrap;
   }
 
   roleToggle.addEventListener('click', (e) => {
@@ -152,19 +168,37 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
   const interestAuthFieldWrap = document.getElementById('interestAuthFieldWrap');
   const interestAuthLabel = document.getElementById('interestAuthLabel');
   const interestAuthInput = document.getElementById('interestAuthInput');
+  const interestConfirmWrap = document.getElementById('interestConfirmWrap');
+  const interestAuthContinueBtn = document.getElementById('interestAuthContinue');
 
   let interestPendingTargetId = null;
-  let interestStage = 'code'; // 'code' -> 'auth'
+  let interestStage = 'code'; // 'code' -> 'auth' -> 'confirm'
   let interestPendingCode = null;
   let interestPendingAuthType = null;
+  let interestPendingAuthValue = null;
 
   document.addEventListener('click', async (e) => {
-    const btn = e.target.closest('.interest-btn');
+    const cancelBtn = e.target.closest('.cancel-request-btn');
+    if (cancelBtn) {
+      if (!visitorCode || !visitorAuthValue) { alert('Please verify your ID again to cancel this request.'); return; }
+      const requestId = cancelBtn.dataset.requestId;
+      const listingId = cancelBtn.dataset.listingId;
+      cancelBtn.disabled = true;
+      const { error } = await window.supabase.rpc('cancel_ally_request', {
+        p_code: visitorCode, p_auth_value: visitorAuthValue, p_request_id: requestId,
+      });
+      if (error) { alert(error.message); cancelBtn.disabled = false; return; }
+      myAllyState.delete(listingId);
+      render();
+      return;
+    }
+
+    const btn = e.target.closest('.request-btn');
     if (!btn) return;
     const targetId = btn.dataset.listingId;
 
     if (visitorCode && visitorAuthValue) {
-      await doToggle(targetId, visitorCode, visitorAuthValue);
+      await sendAllyRequest(targetId, visitorCode, visitorAuthValue);
       return;
     }
 
@@ -174,7 +208,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
     interestAuthInput.value = '';
     interestCodeFieldWrap.style.display = 'block';
     interestAuthFieldWrap.style.display = 'none';
-    interestAuthNote.textContent = "Clicking Interested shares one of your own listings with this person, so they know you'd like to connect. Enter your ID to continue — we'll ask for your PIN or security answer next to confirm it's really you.";
+    interestConfirmWrap.style.display = 'none';
+    interestAuthContinueBtn.textContent = 'Continue';
+    interestAuthNote.textContent = "Enter your ID to continue — we'll ask for your PIN or security answer next, then a final confirmation before anything is sent.";
     interestAuthOverlay.classList.add('open');
   });
 
@@ -198,31 +234,41 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
       interestAuthFieldWrap.style.display = 'block';
       interestAuthLabel.textContent = interestPendingAuthType === 'pin' ? 'Enter your PIN' : (data[0].question || 'Enter your answer');
       interestAuthInput.value = '';
-      interestAuthNote.textContent = 'Almost there — verify it\'s you, and your interest will be sent right away.';
+      interestAuthNote.textContent = 'Almost there — verify it\'s you.';
       interestStage = 'auth';
       return;
     }
 
-    // stage === 'auth'
-    const authValue = interestAuthInput.value.trim();
-    if (!authValue) { alert('Please enter your ' + (interestPendingAuthType === 'pin' ? 'PIN' : 'answer') + '.'); return; }
+    if (interestStage === 'auth') {
+      const authValue = interestAuthInput.value.trim();
+      if (!authValue) { alert('Please enter your ' + (interestPendingAuthType === 'pin' ? 'PIN' : 'answer') + '.'); return; }
+      interestPendingAuthValue = authValue;
+      interestAuthFieldWrap.style.display = 'none';
+      interestConfirmWrap.style.display = 'block';
+      interestAuthNote.textContent = '';
+      interestAuthContinueBtn.textContent = 'Send request';
+      interestStage = 'confirm';
+      return;
+    }
 
-    const ok = await doToggle(interestPendingTargetId, interestPendingCode, authValue);
+    // stage === 'confirm'
+    const ok = await sendAllyRequest(interestPendingTargetId, interestPendingCode, interestPendingAuthValue);
     if (ok) {
       visitorCode = interestPendingCode;
-      visitorAuthValue = authValue;
+      visitorAuthValue = interestPendingAuthValue;
       if (!book.code) {
         book.code = interestPendingCode;
-        book.authValue = authValue;
+        book.authValue = interestPendingAuthValue;
         book.authType = interestPendingAuthType;
       }
-      saveIdentity(interestPendingCode, authValue, interestPendingAuthType);
+      saveIdentity(interestPendingCode, interestPendingAuthValue, interestPendingAuthType);
+      interestAuthContinueBtn.textContent = 'Continue';
       interestAuthOverlay.classList.remove('open');
     }
   });
 
-  async function doToggle(targetId, code, authValue) {
-    const { data, error } = await window.supabase.rpc('toggle_interest', {
+  async function sendAllyRequest(targetId, code, authValue) {
+    const { data, error } = await window.supabase.rpc('request_ally', {
       p_code: code,
       p_auth_value: authValue,
       p_target_listing_id: targetId,
@@ -233,11 +279,7 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
       return false;
     }
 
-    if (data === 'added') {
-      myInterestIds.add(targetId);
-    } else {
-      myInterestIds.delete(targetId);
-    }
+    myAllyState.set(targetId, { requestId: data, status: 'pending' });
     render();
     return true;
   }
@@ -341,7 +383,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
     setActiveBookmark(tab);
     if (tab === 'post') renderPostTab();
     else if (tab === 'submissions') renderSubmissionsTab();
-    else renderInterestsTab();
+    else if (tab === 'interests') renderInterestsTab();
+    else renderAlliesTab();
   }
 
   function openBook(tab, opts) {
@@ -527,9 +570,9 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
       <div class="field"><label>Schedule</label><input type="text" id="${prefix}_schedule" placeholder="Weeknights, Sunday afternoons..."></div>
       <div class="field"><label>Short bio</label><textarea id="${prefix}_bio" placeholder="Tell people a bit about your table or what you're looking for."></textarea></div>
       <div class="field">
-        <label>How can people reach you?</label>
-        <input type="text" id="${prefix}_contact" placeholder="Discord: yourname, or an email address" required>
-        <p class="hint">Shown publicly once approved. There's no messaging on this site — only share what you're comfortable posting.</p>
+        <label>How can people reach you? (optional)</label>
+        <input type="text" id="${prefix}_contact" placeholder="Discord: yourname, or an email address">
+        <p class="hint">Never shown publicly. Only used if you and someone else both choose to become allies and separately share contact.</p>
       </div>
       <button type="button" class="quill-btn" id="${prefix}_submit">Sign this page →</button>
     `;
@@ -568,7 +611,6 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
       const nameVal = container.querySelector(`#${prefix}_name`).value.trim();
       const contactVal = container.querySelector(`#${prefix}_contact`).value.trim();
       if (!nameVal) { alert('Please enter a name or handle.'); return; }
-      if (!contactVal) { alert('Please share how people can reach you.'); return; }
 
       const btn = container.querySelector(`#${prefix}_submit`);
       btn.disabled = true;
@@ -905,8 +947,8 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
     const item = book.myListings.find(r => r.role === role);
     container.innerHTML = `
       <span class="page-role-flag"><span class="dot"></span>${label}</span>
-      <h2>Interest, as ${role === 'dm' ? 'a GM' : 'a player'}</h2>
-      <p class="page-sub">Who's reached toward this listing, and who it's reached toward.</p>
+      <h2>Requests, as ${role === 'dm' ? 'a GM' : 'a player'}</h2>
+      <p class="page-sub">Accepting just means you'll both show up on each other's Allies page — contact still isn't shared until you separately choose to.</p>
     `;
     if (!item) {
       const p = document.createElement('p');
@@ -920,24 +962,26 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
     const receivedHeading = document.createElement('p');
     receivedHeading.className = 'interest-subheading';
-    receivedHeading.textContent = 'Interest received';
+    receivedHeading.textContent = 'Requests received';
     container.appendChild(receivedHeading);
     const receivedList = document.createElement('div');
     receivedList.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">Loading...</p>';
     container.appendChild(receivedList);
-    loadInterestsReceived(book.code, book.authValue, item.id, receivedList);
+    loadRequestsReceived(book.code, book.authValue, item.id, receivedList);
 
     const sentHeading = document.createElement('p');
     sentHeading.className = 'interest-subheading';
-    sentHeading.textContent = 'Interest sent';
+    sentHeading.textContent = 'Requests sent';
     container.appendChild(sentHeading);
     const sentList = document.createElement('div');
     sentList.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">Loading...</p>';
     container.appendChild(sentList);
-    loadInterestsSent(book.code, book.authValue, item.id, sentList);
+    loadRequestsSent(book.code, book.authValue, item.id, sentList);
   }
 
-  function renderInterestReadCard(item, roleField, nameField, systemsField, formatsField, locationField, expField, scheduleField, bioField, contactField) {
+  // Shared read-only card for a request/ally row. contactField is optional —
+  // pass it only where contact might legitimately be shown (the Allies tab).
+  function renderRequestCard(item, roleField, nameField, systemsField, formatsField, locationField, expField, scheduleField, bioField) {
     const systemsText = (item[systemsField] || []).join(', ') || 'Any system';
     const formatsText = (item[formatsField] || []).join(' / ') || 'Format flexible';
     const div = document.createElement('div');
@@ -948,14 +992,13 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
       <p class="card-line"><strong>${escapeHtml(systemsText)}</strong> · ${escapeHtml(formatsText)}</p>
       <p class="card-line">${escapeHtml(item[expField])} · ${escapeHtml(item[scheduleField] || 'Schedule flexible')}</p>
       ${item[locationField] ? `<p class="card-line">📍 ${escapeHtml(item[locationField])}</p>` : ''}
-      ${item[bioField] ? `<p class="card-bio">${escapeHtml(item[bioField])}</p>` : ''}
-      ${item[contactField] ? `<p class="card-bio"><strong>Contact:</strong> ${escapeHtml(item[contactField])}</p>` : ''}
+      ${bioField && item[bioField] ? `<p class="card-bio">${escapeHtml(item[bioField])}</p>` : ''}
     `;
     return div;
   }
 
-  async function loadInterestsReceived(code, authValue, listingId, container) {
-    const { data, error } = await window.supabase.rpc('get_interests_received', {
+  async function loadRequestsReceived(code, authValue, listingId, container) {
+    const { data, error } = await window.supabase.rpc('get_requests_received', {
       p_code: code, p_auth_value: authValue, p_listing_id: listingId,
     });
     if (error) {
@@ -963,36 +1006,162 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
       return;
     }
     if (!data || !data.length) {
-      container.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">No interest yet.</p>';
+      container.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">No requests yet.</p>';
       return;
     }
     container.innerHTML = '';
     data.forEach(item => {
-      container.appendChild(renderInterestReadCard(
+      const card = renderRequestCard(
         item, 'sender_role', 'sender_name', 'sender_systems', 'sender_formats',
-        'sender_location', 'sender_exp', 'sender_schedule', 'sender_bio', 'sender_contact'
-      ));
+        'sender_location', 'sender_exp', 'sender_schedule', 'sender_bio'
+      );
+      const actions = document.createElement('div');
+      actions.style.cssText = 'display:flex; gap:8px; margin-top:8px;';
+      actions.innerHTML = `
+        <button type="button" class="quill-btn" data-action="accept" data-request-id="${item.request_id}" style="width:auto; flex:1; margin-top:0;">Accept</button>
+        <button type="button" class="quill-btn" data-action="decline" data-request-id="${item.request_id}" style="width:auto; flex:1; margin-top:0; background:transparent; color:var(--oxblood); border-color:var(--oxblood);">Decline</button>
+      `;
+      card.appendChild(actions);
+      container.appendChild(card);
     });
+    container.onclick = async (e) => {
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      const requestId = btn.dataset.requestId;
+      const fn = btn.dataset.action === 'accept' ? 'accept_ally_request' : 'decline_ally_request';
+      btn.disabled = true;
+      const { error } = await window.supabase.rpc(fn, { p_code: code, p_auth_value: authValue, p_request_id: requestId });
+      if (error) { alert(error.message); btn.disabled = false; return; }
+      loadRequestsReceived(code, authValue, listingId, container);
+    };
   }
 
-  async function loadInterestsSent(code, authValue, listingId, container) {
-    const { data, error } = await window.supabase.rpc('get_interests_sent', {
-      p_code: code, p_auth_value: authValue, p_sender_listing_id: listingId,
+  async function loadRequestsSent(code, authValue, listingId, container) {
+    const { data, error } = await window.supabase.rpc('get_requests_sent', {
+      p_code: code, p_auth_value: authValue, p_listing_id: listingId,
     });
     if (error) {
       container.innerHTML = `<p class="empty" style="padding:10px 0; font-size:14px;">${escapeHtml(error.message)}</p>`;
       return;
     }
     if (!data || !data.length) {
-      container.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">You haven\'t expressed interest in anything yet.</p>';
+      container.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">You haven\'t sent any requests yet.</p>';
       return;
     }
     container.innerHTML = '';
     data.forEach(item => {
-      container.appendChild(renderInterestReadCard(
+      const card = renderRequestCard(
         item, 'target_role', 'target_name', 'target_systems', 'target_formats',
-        'target_location', 'target_exp', 'target_schedule', 'target_bio', 'target_contact'
-      ));
+        'target_location', 'target_exp', 'target_schedule', null
+      );
+      const cancelBtn = document.createElement('button');
+      cancelBtn.type = 'button';
+      cancelBtn.className = 'quill-btn';
+      cancelBtn.dataset.requestId = item.request_id;
+      cancelBtn.style.cssText = 'background:transparent; color:var(--oxblood); border-color:var(--oxblood);';
+      cancelBtn.textContent = 'Cancel request';
+      card.appendChild(cancelBtn);
+      container.appendChild(card);
+    });
+    container.onclick = async (e) => {
+      const btn = e.target.closest('button[data-request-id]');
+      if (!btn) return;
+      btn.disabled = true;
+      const { error } = await window.supabase.rpc('cancel_ally_request', {
+        p_code: code, p_auth_value: authValue, p_request_id: btn.dataset.requestId,
+      });
+      if (error) { alert(error.message); btn.disabled = false; return; }
+      loadRequestsSent(code, authValue, listingId, container);
+    };
+  }
+
+  // ============ ALLIES TAB ============
+  function renderAlliesTab() {
+    setBookLabel(book.code ? ('✦ ID ' + book.code + ' ✦') : '✦ The Quest Board ✦');
+    if (!book.code) { renderVerifyGate(); return; }
+    if (book.myListings === null) {
+      showInterstitial('<h2>Loading…</h2>');
+      fetchMyListings().then(() => renderAlliesTab());
+      return;
+    }
+    if (book.fetchError) {
+      showInterstitial(`<h2>Something went wrong</h2><p class="page-sub" style="text-align:center;">${escapeHtml(book.fetchError)}</p>`);
+      return;
+    }
+    showLeaves();
+    renderAlliesLeaf('player', pageLeft);
+    renderAlliesLeaf('dm', pageRight);
+  }
+
+  function renderAlliesLeaf(role, container) {
+    const label = role === 'dm' ? 'Game Master' : 'Player';
+    const item = book.myListings.find(r => r.role === role);
+    container.innerHTML = `
+      <span class="page-role-flag"><span class="dot"></span>${label}</span>
+      <h2>Allies, as ${role === 'dm' ? 'a GM' : 'a player'}</h2>
+      <p class="page-sub">Contact only shows once you've both chosen to share it — and either of you can unshare at any time.</p>
+    `;
+    if (!item) {
+      const p = document.createElement('p');
+      p.className = 'empty';
+      p.style.padding = '10px 0';
+      p.style.fontSize = '14px';
+      p.textContent = `You don't have a ${label} listing yet, so there's nothing to show here.`;
+      container.appendChild(p);
+      return;
+    }
+    const list = document.createElement('div');
+    list.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">Loading...</p>';
+    container.appendChild(list);
+    loadAllies(book.code, book.authValue, item.id, list);
+  }
+
+  async function loadAllies(code, authValue, listingId, container) {
+    const { data, error } = await window.supabase.rpc('get_my_allies', {
+      p_code: code, p_auth_value: authValue, p_listing_id: listingId,
+    });
+    if (error) {
+      container.innerHTML = `<p class="empty" style="padding:10px 0; font-size:14px;">${escapeHtml(error.message)}</p>`;
+      return;
+    }
+    if (!data || !data.length) {
+      container.innerHTML = '<p class="empty" style="padding:10px 0; font-size:14px;">No allies yet.</p>';
+      return;
+    }
+    container.innerHTML = '';
+    data.forEach(item => {
+      const card = renderRequestCard(
+        item, 'ally_role', 'ally_name', 'ally_systems', 'ally_formats',
+        'ally_location', 'ally_exp', 'ally_schedule', 'ally_bio'
+      );
+
+      const contactP = document.createElement('p');
+      contactP.className = 'card-bio';
+      if (item.ally_contact) {
+        contactP.innerHTML = `<strong>Contact:</strong> ${escapeHtml(item.ally_contact)}`;
+      } else if (item.my_shared) {
+        contactP.textContent = 'Contact hidden — waiting for them to share theirs.';
+      } else {
+        contactP.textContent = 'Contact hidden — share yours to see theirs.';
+      }
+      card.appendChild(contactP);
+
+      const shareBtn = document.createElement('button');
+      shareBtn.type = 'button';
+      shareBtn.className = 'quill-btn';
+      shareBtn.style.marginTop = '10px';
+      shareBtn.textContent = item.my_shared ? 'Unshare my contact' : 'Share my contact';
+      shareBtn.addEventListener('click', async () => {
+        shareBtn.disabled = true;
+        const { error: shareError } = await window.supabase.rpc('set_contact_shared', {
+          p_code: code, p_auth_value: authValue, p_request_id: item.request_id, p_shared: !item.my_shared,
+        });
+        if (shareError) { alert(shareError.message); shareBtn.disabled = false; return; }
+        loadAllies(code, authValue, listingId, container);
+      });
+      card.appendChild(shareBtn);
+
+      container.appendChild(card);
     });
   }
 

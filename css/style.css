@@ -762,3 +762,23 @@
     .spine-shadow { display: none; }
     .book-outer { padding: 16px; max-height: 88vh; }
   }
+
+  /* Help & report floating button */
+  .help-fab {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    z-index: 500;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 12px 18px;
+    background: var(--forest);
+    color: var(--parchment);
+    border: 1px solid var(--forest);
+    border-radius: 20px;
+    cursor: pointer;
+  }
+  .help-fab:hover { opacity: 0.92; }
+  @media (max-width: 640px) {
+    .help-fab { bottom: 14px; right: 14px; padding: 10px 14px; }
+  }

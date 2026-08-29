@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — The Adventurers' Board</title>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --parchment: #e5d8b4;
+    --ink: #2a241a;
+    --ink-soft: #55503f;
+    --forest: #2c4a3b;
+    --oxblood: #6b2737;
+    --card-bg: #f1e8d0;
+    --line: rgba(42, 36, 26, 0.18);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--parchment);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 60px 24px; }
+  h1 {
+    font-family: 'Spectral', serif;
+    font-weight: 600;
+    font-size: 30px;
+    margin: 0 0 4px;
+  }
+  .sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 32px;
+  }
+
+  #loginBox {
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 28px;
+    max-width: 360px;
+  }
+  #loginBox label {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin: 12px 0 5px;
+  }
+  #loginBox input {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    font-size: 14px;
+    background: #fff;
+  }
+  #loginBox button {
+    margin-top: 18px;
+    width: 100%;
+    padding: 10px;
+    background: var(--forest);
+    color: var(--parchment);
+    border: none;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  #loginError { color: var(--oxblood); font-size: 13px; margin-top: 10px; display: none; }
+
+  #adminPanel { display: none; }
+  .signout {
+    float: right;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    background: none;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+
+  .pending-card {
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .pending-name {
+    font-family: 'Spectral', serif;
+    font-weight: 600;
+    font-size: 20px;
+    margin: 0 0 10px;
+  }
+  .pending-field { margin-bottom: 10px; }
+  .pending-field-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--oxblood);
+    margin: 0 0 2px;
+  }
+  .pending-field-value {
+    font-size: 14px;
+    color: var(--ink);
+    margin: 0;
+    white-space: pre-wrap;
+  }
+
+  .actions { display: flex; gap: 10px; margin-top: 16px; }
+  .actions button {
+    flex: 1;
+    padding: 9px;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid var(--ink);
+  }
+  .btn-approve { background: var(--forest); color: var(--parchment); border-color: var(--forest); }
+  .btn-reject { background: var(--card-bg); color: var(--oxblood); border-color: var(--oxblood); }
+
+  .empty { font-style: italic; color: var(--ink-soft); padding: 30px 0; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <h1>Review queue</h1>
+  <p class="sub">Private admin page — only you can sign in here</p>
+
+  <div id="loginBox">
+    <label>Email</label>
+    <input type="email" id="loginEmail">
+    <label>Password</label>
+    <input type="password" id="loginPassword">
+    <button id="loginBtn">Sign in</button>
+    <p id="loginError">Incorrect email or password.</p>
+  </div>
+
+  <div id="adminPanel">
+    <button class="signout" id="signOutBtn">Sign out</button>
+    <div style="background: var(--card-bg); border: 1px solid var(--line); border-radius: 6px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between;">
+      <div>
+        <p style="font-family: 'Spectral', serif; font-weight: 600; margin: 0 0 3px;">Site status</p>
+        <p id="statusText" style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink-soft); margin: 0;">Checking...</p>
+      </div>
+      <button id="maintenanceToggle" style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 8px 16px; border-radius: 4px; cursor: pointer; border: 1px solid var(--ink);">...</button>
+    </div>
+    <div id="pendingList"></div>
+  </div>
+</div>
+
+<script type="module">
+  import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+  const SUPABASE_URL = 'https://hmweboxsztxkgtgnkbvz.supabase.co';
+  const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imhtd2Vib3hzenR4a2d0Z25rYnZ6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODc3NzkwOTksImV4cCI6MjEwMzM1NTA5OX0.l6jQ7KQJ82vahll6F-5chFFDGsmC1cdTkUOcr327KLk';
+
+  const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+  const loginBox = document.getElementById('loginBox');
+  const adminPanel = document.getElementById('adminPanel');
+  const loginError = document.getElementById('loginError');
+  const pendingList = document.getElementById('pendingList');
+
+  document.getElementById('loginBtn').addEventListener('click', async () => {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      loginError.style.display = 'block';
+      return;
+    }
+    loginError.style.display = 'none';
+    showAdmin();
+  });
+
+  document.getElementById('signOutBtn').addEventListener('click', async () => {
+    await supabase.auth.signOut();
+    location.reload();
+  });
+
+  const statusText = document.getElementById('statusText');
+  const maintenanceToggle = document.getElementById('maintenanceToggle');
+
+  async function showAdmin() {
+    loginBox.style.display = 'none';
+    adminPanel.style.display = 'block';
+    await loadPending();
+    await refreshStatus();
+  }
+
+  async function refreshStatus() {
+    const { data, error } = await supabase
+      .from('site_settings')
+      .select('maintenance')
+      .eq('id', 1)
+      .single();
+
+    if (error) {
+      statusText.textContent = 'Could not load status';
+      return;
+    }
+
+    if (data.maintenance) {
+      statusText.textContent = 'Site is CLOSED to visitors';
+      maintenanceToggle.textContent = 'Open the site';
+      maintenanceToggle.style.background = 'var(--forest)';
+      maintenanceToggle.style.color = 'var(--parchment)';
+    } else {
+      statusText.textContent = 'Site is LIVE to visitors';
+      maintenanceToggle.textContent = 'Close for testing';
+      maintenanceToggle.style.background = 'var(--card-bg)';
+      maintenanceToggle.style.color = 'var(--oxblood)';
+    }
+  }
+
+  maintenanceToggle.addEventListener('click', async () => {
+    maintenanceToggle.disabled = true;
+
+    const { data, error: readError } = await supabase
+      .from('site_settings')
+      .select('maintenance')
+      .eq('id', 1)
+      .single();
+
+    if (readError) {
+      alert('Could not read current status: ' + readError.message);
+      maintenanceToggle.disabled = false;
+      return;
+    }
+
+    const { error: updateError } = await supabase
+      .from('site_settings')
+      .update({ maintenance: !data.maintenance })
+      .eq('id', 1);
+
+    if (updateError) {
+      alert('Could not update: ' + updateError.message);
+    }
+
+    await refreshStatus();
+    maintenanceToggle.disabled = false;
+  });
+
+  // Only the fields someone actually typed themselves -- location, schedule,
+  // bio, contact. Selections like role/system/format/experience are left out
+  // since they're not written content that needs a human read-through.
+  const WRITTEN_FIELDS = [
+    { key: 'location', label: 'Location' },
+    { key: 'schedule', label: 'Schedule' },
+    { key: 'contact', label: 'Contact' },
+    { key: 'bio', label: 'Bio' },
+  ];
+
+  async function loadPending() {
+    const { data, error } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('status', 'pending')
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      pendingList.innerHTML = `<p class="empty">Could not load pending listings: ${error.message}</p>`;
+      return;
+    }
+
+    if (!data.length) {
+      pendingList.innerHTML = '<p class="empty">Nothing waiting for review right now.</p>';
+      return;
+    }
+
+    pendingList.innerHTML = '';
+    data.forEach(item => {
+      const card = document.createElement('div');
+      card.className = 'pending-card';
+
+      const fieldsHtml = WRITTEN_FIELDS
+        .filter(f => item[f.key] && item[f.key].trim())
+        .map(f => `
+          <div class="pending-field">
+            <p class="pending-field-label">${f.label}</p>
+            <p class="pending-field-value">${escapeHtml(item[f.key])}</p>
+          </div>
+        `).join('');
+
+      card.innerHTML = `
+        <p class="pending-name">${escapeHtml(item.name)}</p>
+        ${fieldsHtml || '<p class="pending-field-value" style="font-style:italic; color:var(--ink-soft);">No written details provided.</p>'}
+        <div class="actions">
+          <button class="btn-approve" data-id="${item.id}" data-action="approve">Approve</button>
+          <button class="btn-reject" data-id="${item.id}" data-action="reject">Reject</button>
+        </div>
+      `;
+      pendingList.appendChild(card);
+    });
+  }
+
+  pendingList.addEventListener('click', async (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const action = btn.dataset.action;
+    btn.closest('.pending-card').style.opacity = '0.5';
+
+    if (action === 'approve') {
+      await supabase.from('listings').update({ status: 'approved' }).eq('id', id);
+    } else {
+      await supabase.from('listings').delete().eq('id', id);
+    }
+    await loadPending();
+  });
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str || '';
+    return div.innerHTML;
+  }
+
+  supabase.auth.getSession().then(({ data }) => {
+    if (data.session) showAdmin();
+  });
+</script>
+
+</body>
+</html>

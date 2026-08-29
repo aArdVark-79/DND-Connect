@@ -1,0 +1,122 @@
+:root {
+    --parchment: #e5d8b4;
+    --ink: #2a241a;
+    --ink-soft: #55503f;
+    --forest: #2c4a3b;
+    --oxblood: #6b2737;
+    --card-bg: #f1e8d0;
+    --line: rgba(42, 36, 26, 0.18);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--parchment);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; padding: 60px 24px; }
+  h1 {
+    font-family: 'Spectral', serif;
+    font-weight: 600;
+    font-size: 30px;
+    margin: 0 0 4px;
+  }
+  .sub {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin-bottom: 32px;
+  }
+
+  #loginBox {
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 28px;
+    max-width: 360px;
+  }
+  #loginBox label {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--ink-soft);
+    margin: 12px 0 5px;
+  }
+  #loginBox input {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    font-size: 14px;
+    background: #fff;
+  }
+  #loginBox button {
+    margin-top: 18px;
+    width: 100%;
+    padding: 10px;
+    background: var(--forest);
+    color: var(--parchment);
+    border: none;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  #loginError { color: var(--oxblood); font-size: 13px; margin-top: 10px; display: none; }
+
+  #adminPanel { display: none; }
+  .signout {
+    float: right;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    background: none;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    padding: 6px 12px;
+    cursor: pointer;
+    color: var(--ink);
+  }
+
+  .pending-card {
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 16px;
+  }
+  .pending-name {
+    font-family: 'Spectral', serif;
+    font-weight: 600;
+    font-size: 20px;
+    margin: 0 0 10px;
+  }
+  .pending-field { margin-bottom: 10px; }
+  .pending-field-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--oxblood);
+    margin: 0 0 2px;
+  }
+  .pending-field-value {
+    font-size: 14px;
+    color: var(--ink);
+    margin: 0;
+    white-space: pre-wrap;
+  }
+
+  .actions { display: flex; gap: 10px; margin-top: 16px; }
+  .actions button {
+    flex: 1;
+    padding: 9px;
+    border-radius: 4px;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    cursor: pointer;
+    border: 1px solid var(--ink);
+  }
+  .btn-approve { background: var(--forest); color: var(--parchment); border-color: var(--forest); }
+  .btn-reject { background: var(--card-bg); color: var(--oxblood); border-color: var(--oxblood); }
+
+  .empty { font-style: italic; color: var(--ink-soft); padding: 30px 0; }

@@ -1,0 +1,20 @@
+<!-- Verify identity before toggling interest on a listing -->
+<div class="modal-overlay" id="interestAuthOverlay">
+  <div class="modal">
+    <h2>Verify it's you</h2>
+    <p class="note" id="interestAuthNote">Enter your ID to express interest.</p>
+    <div class="field" id="interestCodeFieldWrap">
+      <label>Your ID</label>
+      <input type="text" id="interestCodeInput" maxlength="6" style="text-transform:uppercase;">
+    </div>
+    <div class="field" id="interestAuthFieldWrap" style="display:none;">
+      <label id="interestAuthLabel">Enter your PIN</label>
+      <input type="text" id="interestAuthInput">
+      <p class="auth-explainer">This confirms it's really you, so the person you're interested in only ever hears from real, verified people — not anyone who happened to guess or see your ID.</p>
+    </div>
+    <div class="modal-actions">
+      <button type="button" class="btn-cancel" id="interestAuthCancel">Cancel</button>
+      <button type="button" class="btn-submit" id="interestAuthContinue">Continue</button>
+    </div>
+  </div>
+</div>

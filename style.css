@@ -109,6 +109,7 @@
     font-family: 'IBM Plex Mono', monospace;
     font-size: 11px;
     letter-spacing: 0.04em;
+    color: #a89a72;
     opacity: 0;
     transform: translateY(-4px);
     transition: opacity 0.25s ease, transform 0.25s ease;
@@ -121,6 +122,7 @@
     font-size: 22px;
     line-height: 1.1;
     margin-bottom: 2px;
+    color: var(--gold-bright);
   }
 
   .board {

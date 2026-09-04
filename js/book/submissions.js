@@ -55,8 +55,15 @@ function buildEditCard(code, authValue, item) {
   const customSystems = itemSystems.filter(s => !KNOWN_SYSTEMS.includes(s));
   const hasCustom = customSystems.length > 0;
 
+  const isActive = item.active !== false;
+
   card.innerHTML = `
     <span class="status-pill ${item.status}">${item.status === 'approved' ? 'Live on the board' : 'Pending review'}</span>
+
+    <div style="margin-bottom:14px;">
+      <p class="card-line" id="e_active_note_${uid}" style="margin-bottom:8px;">${isActive ? 'Currently visible on the board.' : 'Currently hidden from the board.'}</p>
+      <button type="button" class="quill-btn" id="e_toggle_active_${uid}" data-action="toggle-active" style="margin-top:0;">${isActive ? 'Deactivate listing' : 'Reactivate listing'}</button>
+    </div>
 
     <div class="field">
       <label>Name / handle</label>
@@ -132,6 +139,20 @@ function buildEditCard(code, authValue, item) {
   });
 
   card.querySelector('[data-action="cancel"]').addEventListener('click', () => {
+    card.replaceWith(buildEditCard(code, authValue, item));
+  });
+
+  card.querySelector(`#e_toggle_active_${uid}`).addEventListener('click', async () => {
+    const toggleBtn = card.querySelector(`#e_toggle_active_${uid}`);
+    toggleBtn.disabled = true;
+    const { data: newActive, error } = await supabase.rpc('toggle_listing_active', {
+      p_code: code,
+      p_auth_value: authValue,
+      p_listing_id: item.id,
+    });
+    toggleBtn.disabled = false;
+    if (error) { alert(error.message); return; }
+    item.active = newActive;
     card.replaceWith(buildEditCard(code, authValue, item));
   });
 

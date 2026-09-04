@@ -25,5 +25,20 @@
 <div data-include="partials/help-report.html"></div>
 
 <script type="module" src="partials-loader.js"></script>
+
+<script type="module">
+  function partialsReady() {
+    const includes = document.querySelectorAll('[data-include]');
+    return [...includes].every(el => el.children.length > 0);
+  }
+  function waitFor(check) {
+    return new Promise(resolve => {
+      const tick = () => check() ? resolve() : requestAnimationFrame(tick);
+      tick();
+    });
+  }
+  await waitFor(partialsReady);
+  await import('./js/app.js');
+</script>
 </body>
 </html>

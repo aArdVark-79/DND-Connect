@@ -20,6 +20,7 @@ export async function loadListings() {
     .from('listings')
     .select('id, role, name, systems, formats, location, exp, schedule, bio, created_at')
     .eq('status', 'approved')
+    .eq('active', true)
     .order('created_at', { ascending: false });
 
   if (error) {

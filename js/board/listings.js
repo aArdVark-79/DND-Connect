@@ -1,3 +1,4 @@
+// Board: loading listings, filtering, sorting, and rendering the cards.
 import { supabase } from '../config/supabase.js';
 import { escapeHtml } from '../utils/html.js';
 import {
@@ -5,15 +6,8 @@ import {
 } from '../state/appState.js';
 import { buildAllyActionEl } from './allyActions.js';
 
-// ============ BOARD: filters, sorting, rendering ============
-const grid = document.getElementById('grid');
-const countLine = document.getElementById('countLine');
-const emptyMsg = document.getElementById('emptyMsg');
-const roleToggle = document.getElementById('roleToggle');
-const systemFilter = document.getElementById('systemFilter');
-const formatFilter = document.getElementById('formatFilter');
-const expFilter = document.getElementById('expFilter');
-const sortOrder = document.getElementById('sortOrder');
+let grid, countLine, emptyMsg, roleToggle, systemFilter, formatFilter, expFilter, sortOrder;
+let filterToggleBtn, filtersPanel;
 
 export async function loadListings() {
   const { data, error } = await supabase
@@ -87,22 +81,33 @@ export function render() {
   });
 }
 
-roleToggle.addEventListener('click', (e) => {
-  if (e.target.tagName !== 'BUTTON') return;
-  [...roleToggle.children].forEach(b => b.classList.remove('active'));
-  e.target.classList.add('active');
-  setActiveRole(e.target.dataset.role);
-  render();
-});
+export function initBoard() {
+  grid = document.getElementById('grid');
+  countLine = document.getElementById('countLine');
+  emptyMsg = document.getElementById('emptyMsg');
+  roleToggle = document.getElementById('roleToggle');
+  systemFilter = document.getElementById('systemFilter');
+  formatFilter = document.getElementById('formatFilter');
+  expFilter = document.getElementById('expFilter');
+  sortOrder = document.getElementById('sortOrder');
+  filterToggleBtn = document.getElementById('filterToggleBtn');
+  filtersPanel = document.getElementById('filtersPanel');
 
-[systemFilter, formatFilter, expFilter, sortOrder].forEach(el => el.addEventListener('change', render));
+  setBoardRenderer(render);
 
-const filterToggleBtn = document.getElementById('filterToggleBtn');
-const filtersPanel = document.getElementById('filtersPanel');
-filterToggleBtn.addEventListener('click', () => {
-  const isOpen = filtersPanel.classList.toggle('open');
-  filterToggleBtn.classList.toggle('active', isOpen);
-  filterToggleBtn.textContent = isOpen ? 'Filters ▴' : 'Filters ▾';
-});
+  roleToggle.addEventListener('click', (e) => {
+    if (e.target.tagName !== 'BUTTON') return;
+    [...roleToggle.children].forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    setActiveRole(e.target.dataset.role);
+    render();
+  });
 
-setBoardRenderer(render);
+  [systemFilter, formatFilter, expFilter, sortOrder].forEach(el => el.addEventListener('change', render));
+
+  filterToggleBtn.addEventListener('click', () => {
+    const isOpen = filtersPanel.classList.toggle('open');
+    filterToggleBtn.classList.toggle('active', isOpen);
+    filterToggleBtn.textContent = isOpen ? 'Filters ▴' : 'Filters ▾';
+  });
+}

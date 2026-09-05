@@ -1,3 +1,4 @@
+
 // Board: loading listings, filtering, sorting, and rendering the cards.
 // Following this file's own project convention: importing this module runs
 // its DOM-ref grabbing and listener wiring immediately (no separate init
@@ -131,6 +132,11 @@ export function render() {
 }
 
 setBoardRenderer(render);
+
+// maintenance.js still calls initBoard() — kept as a harmless no-op since
+// all the real setup above already runs automatically the moment this
+// module is imported, whether or not anything calls this.
+export function initBoard() {}
 
 roleToggle.addEventListener('click', (e) => {
   if (e.target.tagName !== 'BUTTON') return;

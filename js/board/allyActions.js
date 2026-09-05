@@ -11,11 +11,11 @@ export function buildAllyActionEl(listingId) {
     wrap.innerHTML = `<button class="interest-btn request-btn" data-listing-id="${listingId}">⚔ Request ally</button>`;
   } else if (state.status === 'pending') {
     wrap.innerHTML = `
-      <p class="card-line">Ally request sent — pending</p>
+      <p class="card-line">Your message has been delivered by courier. We'll let you know if they accept your invitation.</p>
       <button class="interest-btn cancel-request-btn" data-request-id="${state.requestId}" data-listing-id="${listingId}">Cancel request</button>
     `;
   } else {
-    wrap.innerHTML = `<p class="card-line">✓ You're allies — see the Allies page in the book</p>`;
+    wrap.innerHTML = `<p class="card-line">✓ Alliance forged! You can now exchange contact details and continue your adventure beyond the board.</p>`;
   }
   return wrap;
 }

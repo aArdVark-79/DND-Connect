@@ -6,7 +6,7 @@ import {
 } from '../state/appState.js';
 import { buildAllyActionEl } from './allyActions.js';
 
-let grid, countLine, emptyMsg, roleToggle, systemFilter, formatFilter, expFilter, sortOrder;
+let grid, countLine, emptyMsg, roleToggle, systemFilterGroup, formatFilterGroup, expFilterGroup, sortOrder;
 let filterToggleBtn, filtersPanel;
 
 export async function loadListings() {
@@ -27,24 +27,28 @@ export async function loadListings() {
 export function render() {
   const listings = getListings();
   const activeRole = getActiveRole();
-  const sys = systemFilter.value;
-  const fmt = formatFilter.value;
-  const exp = expFilter.value;
+  const sys = [...systemFilterGroup.querySelectorAll('input:checked')].map(i => i.value);
+const fmt = [...formatFilterGroup.querySelectorAll('input:checked')].map(i => i.value);
+const exp = [...expFilterGroup.querySelectorAll('input:checked')].map(i => i.value);
 
   let filtered = listings.filter(l => {
     if (activeRole !== 'all' && l.role !== activeRole) return false;
 
     const systemsArr = l.systems || [];
-    if (sys === 'Other') {
-      if (systemsArr.every(s => KNOWN_SYSTEMS.includes(s))) return false;
-    } else if (sys && !systemsArr.includes(sys)) {
-      return false;
-    }
+   if (sys.length) {
+  const matchesSystem = sys.some(selected =>
+    selected === 'Other'
+      ? systemsArr.some(s => !KNOWN_SYSTEMS.includes(s))
+      : systemsArr.includes(selected)
+  );
+
+  if (!matchesSystem) return false;
+}
 
     const formatsArr = l.formats || [];
-    if (fmt && !formatsArr.includes(fmt)) return false;
+   if (fmt.length && !fmt.some(f => formatsArr.includes(f))) return false;
 
-    if (exp && l.exp !== exp) return false;
+if (exp.length && !exp.includes(l.exp)) return false;
     return true;
   });
 
@@ -86,9 +90,9 @@ export function initBoard() {
   countLine = document.getElementById('countLine');
   emptyMsg = document.getElementById('emptyMsg');
   roleToggle = document.getElementById('roleToggle');
-  systemFilter = document.getElementById('systemFilter');
-  formatFilter = document.getElementById('formatFilter');
-  expFilter = document.getElementById('expFilter');
+  systemFilterGroup = document.getElementById('systemFilterGroup');
+  formatFilterGroup = document.getElementById('formatFilterGroup');
+  expFilterGroup = document.getElementById('expFilterGroup');
   sortOrder = document.getElementById('sortOrder');
   filterToggleBtn = document.getElementById('filterToggleBtn');
   filtersPanel = document.getElementById('filtersPanel');
@@ -103,8 +107,12 @@ export function initBoard() {
     render();
   });
 
-  [systemFilter, formatFilter, expFilter, sortOrder].forEach(el => el.addEventListener('change', render));
+[systemFilterGroup, formatFilterGroup, expFilterGroup].forEach(group => {
+  group.addEventListener('change', render);
+});
 
+sortOrder.addEventListener('change', render);
+  
   filterToggleBtn.addEventListener('click', () => {
     const isOpen = filtersPanel.classList.toggle('open');
     filterToggleBtn.classList.toggle('active', isOpen);

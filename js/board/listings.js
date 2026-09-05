@@ -1,35 +1,18 @@
-```js
 // Board: loading listings, filtering, sorting, and rendering the cards.
 import { supabase } from '../config/supabase.js';
 import { escapeHtml } from '../utils/html.js';
 import {
-  KNOWN_SYSTEMS,
-  getListings,
-  setListings,
-  getActiveRole,
-  setActiveRole,
-  setBoardRenderer,
+  KNOWN_SYSTEMS, getListings, setListings, getActiveRole, setActiveRole, setBoardRenderer,
 } from '../state/appState.js';
 import { buildAllyActionEl } from './allyActions.js';
 
-let grid;
-let countLine;
-let emptyMsg;
-let roleToggle;
-let systemFilterGroup;
-let formatFilterGroup;
-let expFilterGroup;
-let locationFilter;
-let sortOrder;
-let filterToggleBtn;
-let filtersPanel;
+let grid, countLine, emptyMsg, roleToggle, systemFilter, formatFilter, expFilter, sortOrder;
+let filterToggleBtn, filtersPanel;
 
 export async function loadListings() {
   const { data, error } = await supabase
     .from('listings')
-    .select(
-      'id, role, name, systems, formats, location, exp, schedule, bio, created_at'
-    )
+    .select('id, role, name, systems, formats, location, exp, schedule, bio, created_at')
     .eq('status', 'approved')
     .order('created_at', { ascending: false });
 
@@ -37,239 +20,63 @@ export async function loadListings() {
     console.error('Could not load listings:', error);
     return;
   }
-
-  console.log('Board loaded listings:', data);
-
-  setListings(data || []);
+  setListings(data);
   render();
 }
 
 export function render() {
-  // Make sure the board HTML exists before trying to render.
-  if (
-    !grid ||
-    !countLine ||
-    !emptyMsg ||
-    !roleToggle ||
-    !systemFilterGroup ||
-    !formatFilterGroup ||
-    !expFilterGroup ||
-    !locationFilter ||
-    !sortOrder
-  ) {
-    console.error('Board elements are missing from the page.');
-    return;
-  }
-
   const listings = getListings();
   const activeRole = getActiveRole();
+  const sys = systemFilter.value;
+  const fmt = formatFilter.value;
+  const exp = expFilter.value;
 
-  const selectedSystems = [
-    ...systemFilterGroup.querySelectorAll('input:checked'),
-  ].map(input => input.value);
+  let filtered = listings.filter(l => {
+    if (activeRole !== 'all' && l.role !== activeRole) return false;
 
-  const selectedFormats = [
-    ...formatFilterGroup.querySelectorAll('input:checked'),
-  ].map(input => input.value);
-
-  const selectedExperience = [
-    ...expFilterGroup.querySelectorAll('input:checked'),
-  ].map(input => input.value);
-
-  const locationSearch = locationFilter.value.trim().toLowerCase();
-
-  let filtered = listings.filter(listing => {
-    // Role filter
-    if (
-      activeRole !== 'all' &&
-      listing.role !== activeRole
-    ) {
+    const systemsArr = l.systems || [];
+    if (sys === 'Other') {
+      if (systemsArr.every(s => KNOWN_SYSTEMS.includes(s))) return false;
+    } else if (sys && !systemsArr.includes(sys)) {
       return false;
     }
 
-    // Location filter
-    if (
-      locationSearch &&
-      !(listing.location || '').toLowerCase().includes(locationSearch)
-    ) {
-      return false;
-    }
+    const formatsArr = l.formats || [];
+    if (fmt && !formatsArr.includes(fmt)) return false;
 
-    // System filter
-    const systems = Array.isArray(listing.systems)
-      ? listing.systems
-      : [];
-
-    if (selectedSystems.length) {
-      const matchesSystem = selectedSystems.some(selected => {
-        if (selected === 'Other') {
-          return systems.some(
-            system => !KNOWN_SYSTEMS.includes(system)
-          );
-        }
-
-        return systems.includes(selected);
-      });
-
-      if (!matchesSystem) {
-        return false;
-      }
-    }
-
-    // Format filter
-    const formats = Array.isArray(listing.formats)
-      ? listing.formats
-      : [];
-
-    if (
-      selectedFormats.length &&
-      !selectedFormats.some(format => formats.includes(format))
-    ) {
-      return false;
-    }
-
-    // Experience filter
-    if (
-      selectedExperience.length &&
-      !selectedExperience.includes(listing.exp)
-    ) {
-      return false;
-    }
-
+    if (exp && l.exp !== exp) return false;
     return true;
   });
 
-  // Sorting
   if (sortOrder.value === 'alpha') {
-    filtered = filtered
-      .slice()
-      .sort((a, b) =>
-        (a.name || '').localeCompare(b.name || '')
-      );
+    filtered = filtered.slice().sort((a, b) => a.name.localeCompare(b.name));
   } else {
-    filtered = filtered
-      .slice()
-      .sort(
-        (a, b) =>
-          new Date(b.created_at) - new Date(a.created_at)
-      );
+    filtered = filtered.slice().sort((a, b) => new Date(b.created_at) - new Date(a.created_at));
   }
 
-  // Update count
-  countLine.textContent =
-    filtered.length +
-    (filtered.length === 1
-      ? ' listing on the board'
-      : ' listings on the board');
-
-  // Clear existing cards
+  countLine.textContent = filtered.length + (filtered.length === 1 ? ' listing on the board' : ' listings on the board');
   grid.innerHTML = '';
+  emptyMsg.style.display = filtered.length ? 'none' : 'block';
 
-  // Show/hide empty message
-  emptyMsg.style.display =
-    filtered.length ? 'none' : 'block';
-
-  // Render cards
-  filtered.forEach(listing => {
-    const systemsText =
-      (Array.isArray(listing.systems)
-        ? listing.systems
-        : []
-      ).join(', ') || 'Any system';
-
-    const formatsText =
-      (Array.isArray(listing.formats)
-        ? listing.formats
-        : []
-      ).join(' / ') || 'Format flexible';
-
+  filtered.forEach(l => {
+    const systemsText = (l.systems || []).join(', ') || 'Any system';
+    const formatsText = (l.formats || []).join(' / ') || 'Format flexible';
     const card = document.createElement('div');
     card.className = 'card';
-
     card.innerHTML = `
-      <p class="card-role ${
-        listing.role === 'player' ? 'player' : ''
-      }">
-        ${
-          listing.role === 'dm'
-            ? 'Game Master'
-            : 'Player'
-        }
-      </p>
-
-      <p class="card-name">
-        ${escapeHtml(listing.name || 'Unnamed listing')}
-      </p>
-
-      <p class="card-line">
-        <strong>${escapeHtml(systemsText)}</strong>
-        ·
-        ${escapeHtml(formatsText)}
-      </p>
-
-      <p class="card-line">
-        ${escapeHtml(listing.exp || 'Experience flexible')}
-        ·
-        ${escapeHtml(
-          listing.schedule || 'Schedule flexible'
-        )}
-      </p>
-
-      ${
-        listing.location
-          ? `<p class="card-line">
-              📍 ${escapeHtml(listing.location)}
-            </p>`
-          : ''
-      }
-
+      <p class="card-role ${l.role === 'player' ? 'player' : ''}">${l.role === 'dm' ? 'Game Master' : 'Player'}</p>
+      <p class="card-name">${escapeHtml(l.name)}</p>
+      <p class="card-line"><strong>${escapeHtml(systemsText)}</strong> · ${escapeHtml(formatsText)}</p>
+      <p class="card-line">${escapeHtml(l.exp)} · ${escapeHtml(l.schedule || 'Schedule flexible')}</p>
+      ${l.location ? `<p class="card-line">📍 ${escapeHtml(l.location)}</p>` : ''}
       <div class="tags">
-        ${
-          (Array.isArray(listing.systems)
-            ? listing.systems
-            : []
-          )
-            .map(
-              system =>
-                `<span class="tag">${escapeHtml(system)}</span>`
-            )
-            .join('')
-        }
-
-        ${
-          (Array.isArray(listing.formats)
-            ? listing.formats
-            : []
-          )
-            .map(
-              format =>
-                `<span class="tag">${escapeHtml(format)}</span>`
-            )
-            .join('')
-        }
-
-        ${
-          listing.exp
-            ? `<span class="tag">${escapeHtml(
-                listing.exp
-              )}</span>`
-            : ''
-        }
+        ${(l.systems || []).map(s => `<span class="tag">${escapeHtml(s)}</span>`).join('')}
+        ${(l.formats || []).map(f => `<span class="tag">${escapeHtml(f)}</span>`).join('')}
+        <span class="tag">${escapeHtml(l.exp)}</span>
       </div>
-
-      ${
-        listing.bio
-          ? `<p class="card-bio">
-              ${escapeHtml(listing.bio)}
-            </p>`
-          : ''
-      }
+      ${l.bio ? `<p class="card-bio">${escapeHtml(l.bio)}</p>` : ''}
     `;
-
-    card.appendChild(
-      buildAllyActionEl(listing.id)
-    );
-
+    card.appendChild(buildAllyActionEl(l.id));
     grid.appendChild(card);
   });
 }
@@ -279,88 +86,28 @@ export function initBoard() {
   countLine = document.getElementById('countLine');
   emptyMsg = document.getElementById('emptyMsg');
   roleToggle = document.getElementById('roleToggle');
+  systemFilter = document.getElementById('systemFilter');
+  formatFilter = document.getElementById('formatFilter');
+  expFilter = document.getElementById('expFilter');
+  sortOrder = document.getElementById('sortOrder');
+  filterToggleBtn = document.getElementById('filterToggleBtn');
+  filtersPanel = document.getElementById('filtersPanel');
 
-  systemFilterGroup =
-    document.getElementById('systemFilterGroup');
-
-  formatFilterGroup =
-    document.getElementById('formatFilterGroup');
-
-  expFilterGroup =
-    document.getElementById('expFilterGroup');
-
-  locationFilter =
-    document.getElementById('locationFilter');
-
-  sortOrder =
-    document.getElementById('sortOrder');
-
-  filterToggleBtn =
-    document.getElementById('filterToggleBtn');
-
-  filtersPanel =
-    document.getElementById('filtersPanel');
-
-  // Make render available to other modules.
   setBoardRenderer(render);
 
-  // Role buttons
-  roleToggle.addEventListener('click', event => {
-    if (event.target.tagName !== 'BUTTON') {
-      return;
-    }
-
-    [...roleToggle.children].forEach(button => {
-      button.classList.remove('active');
-    });
-
-    event.target.classList.add('active');
-
-    setActiveRole(
-      event.target.dataset.role
-    );
-
+  roleToggle.addEventListener('click', (e) => {
+    if (e.target.tagName !== 'BUTTON') return;
+    [...roleToggle.children].forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    setActiveRole(e.target.dataset.role);
     render();
   });
 
-  // Checkbox filters
-  [
-    systemFilterGroup,
-    formatFilterGroup,
-    expFilterGroup,
-  ].forEach(group => {
-    group.addEventListener('change', render);
+  [systemFilter, formatFilter, expFilter, sortOrder].forEach(el => el.addEventListener('change', render));
+
+  filterToggleBtn.addEventListener('click', () => {
+    const isOpen = filtersPanel.classList.toggle('open');
+    filterToggleBtn.classList.toggle('active', isOpen);
+    filterToggleBtn.textContent = isOpen ? 'Filters ▴' : 'Filters ▾';
   });
-
-  // Location search
-  locationFilter.addEventListener(
-    'input',
-    render
-  );
-
-  // Sorting
-  sortOrder.addEventListener(
-    'change',
-    render
-  );
-
-  // Open/close filters
-  filterToggleBtn.addEventListener(
-    'click',
-    () => {
-      const isOpen =
-        filtersPanel.classList.toggle('open');
-
-      filterToggleBtn.classList.toggle(
-        'active',
-        isOpen
-      );
-
-      filterToggleBtn.textContent =
-        isOpen
-          ? 'Filters ▴'
-          : 'Filters ▾';
-    }
-  );
 }
-```

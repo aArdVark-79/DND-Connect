@@ -1,3 +1,4 @@
+
 // Board: loading listings, filtering, sorting, and rendering the cards.
 import { supabase } from '../config/supabase.js';
 import { escapeHtml } from '../utils/html.js';

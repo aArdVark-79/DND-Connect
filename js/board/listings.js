@@ -10,10 +10,15 @@ const grid = document.getElementById('grid');
 const countLine = document.getElementById('countLine');
 const emptyMsg = document.getElementById('emptyMsg');
 const roleToggle = document.getElementById('roleToggle');
-const systemFilter = document.getElementById('systemFilter');
-const formatFilter = document.getElementById('formatFilter');
-const expFilter = document.getElementById('expFilter');
+const locationFilter = document.getElementById('locationFilter');
+const systemFilterGroup = document.getElementById('systemFilterGroup');
+const formatFilterGroup = document.getElementById('formatFilterGroup');
+const expFilterGroup = document.getElementById('expFilterGroup');
 const sortOrder = document.getElementById('sortOrder');
+
+function checkedValues(group) {
+  return [...group.querySelectorAll('input[type="checkbox"]:checked')].map(c => c.value);
+}
 
 export async function loadListings() {
   const { data, error } = await supabase
@@ -34,24 +39,28 @@ export async function loadListings() {
 export function render() {
   const listings = getListings();
   const activeRole = getActiveRole();
-  const sys = systemFilter.value;
-  const fmt = formatFilter.value;
-  const exp = expFilter.value;
+  const sysChosen = checkedValues(systemFilterGroup);
+  const fmtChosen = checkedValues(formatFilterGroup);
+  const expChosen = checkedValues(expFilterGroup);
+  const locationQuery = locationFilter.value.trim().toLowerCase();
 
   let filtered = listings.filter(l => {
     if (activeRole !== 'all' && l.role !== activeRole) return false;
 
     const systemsArr = l.systems || [];
-    if (sys === 'Other') {
-      if (systemsArr.every(s => KNOWN_SYSTEMS.includes(s))) return false;
-    } else if (sys && !systemsArr.includes(sys)) {
-      return false;
+    if (sysChosen.length) {
+      const matchesOther = sysChosen.includes('Other') && systemsArr.some(s => !KNOWN_SYSTEMS.includes(s));
+      const matchesKnown = systemsArr.some(s => sysChosen.includes(s));
+      if (!matchesOther && !matchesKnown) return false;
     }
 
     const formatsArr = l.formats || [];
-    if (fmt && !formatsArr.includes(fmt)) return false;
+    if (fmtChosen.length && !formatsArr.some(f => fmtChosen.includes(f))) return false;
 
-    if (exp && l.exp !== exp) return false;
+    if (expChosen.length && !expChosen.includes(l.exp)) return false;
+
+    if (locationQuery && !(l.location || '').toLowerCase().includes(locationQuery)) return false;
+
     return true;
   });
 
@@ -96,7 +105,11 @@ roleToggle.addEventListener('click', (e) => {
   render();
 });
 
-[systemFilter, formatFilter, expFilter, sortOrder].forEach(el => el.addEventListener('change', render));
+[systemFilterGroup, formatFilterGroup, expFilterGroup].forEach(group => {
+  group.addEventListener('change', render);
+});
+locationFilter.addEventListener('input', render);
+sortOrder.addEventListener('change', render);
 
 const filterToggleBtn = document.getElementById('filterToggleBtn');
 const filtersPanel = document.getElementById('filtersPanel');

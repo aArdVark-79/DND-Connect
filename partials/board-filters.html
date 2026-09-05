@@ -3,39 +3,51 @@
     <div class="filters-row">
       <div class="role-toggle" id="roleToggle">
         <button data-role="all" class="active">All</button>
-        <button data-role="dm">GMs</button>
-        <button data-role="player">Players</button>
+        <button data-role="dm">Find a Game</button>
+        <button data-role="player">Find a player</button>
       </div>
       <button class="filter-toggle-btn" id="filterToggleBtn">Filters ▾</button>
       <div class="actions-row">
-        <button class="add-btn" id="openPostFlow">+ Post your listing</button>
+        <button class="add-btn" id="openPostFlow" title="Tell the Adventurers' Board who you're looking for.">+ Post a Quest</button>
         <button class="add-btn secondary" id="openMyListings">My submissions</button>
       </div>
     </div>
     <div class="filters-panel" id="filtersPanel">
-      <select id="systemFilter">
-        <option value="">Any system</option>
-        <option value="D&D 5e">D&D 5e</option>
-        <option value="Pathfinder 2e">Pathfinder 2e</option>
-        <option value="Call of Cthulhu">Call of Cthulhu</option>
-        <option value="Blades in the Dark">Blades in the Dark</option>
-        <option value="Other">Other</option>
-      </select>
-      <select id="formatFilter">
-        <option value="">Any format</option>
-        <option value="Online">Online</option>
-        <option value="In-person">In-person</option>
-      </select>
-      <select id="expFilter">
-        <option value="">Any experience</option>
-        <option value="New">New</option>
-        <option value="Some experience">Some experience</option>
-        <option value="Veteran">Veteran</option>
-      </select>
+      <div class="field">
+        <label>Location</label>
+        <input type="text" id="locationFilter" placeholder="e.g. Seattle, or Online">
+      </div>
+      <div class="field">
+        <label>Game system(s) — select any that apply</label>
+        <div class="checkbox-group" id="systemFilterGroup">
+          <label class="checkbox-pill"><input type="checkbox" value="D&D 5e"> D&D 5e</label>
+          <label class="checkbox-pill"><input type="checkbox" value="Pathfinder 2e"> Pathfinder 2e</label>
+          <label class="checkbox-pill"><input type="checkbox" value="Call of Cthulhu"> Call of Cthulhu</label>
+          <label class="checkbox-pill"><input type="checkbox" value="Blades in the Dark"> Blades in the Dark</label>
+          <label class="checkbox-pill"><input type="checkbox" value="Other"> Other</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Format — select any that apply</label>
+        <div class="checkbox-group" id="formatFilterGroup">
+          <label class="checkbox-pill"><input type="checkbox" value="Online"> Online</label>
+          <label class="checkbox-pill"><input type="checkbox" value="In-person"> In-person</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Experience — select any that apply</label>
+        <div class="checkbox-group" id="expFilterGroup">
+          <label class="checkbox-pill"><input type="checkbox" value="New"> New</label>
+          <label class="checkbox-pill"><input type="checkbox" value="Some experience"> Some experience</label>
+          <label class="checkbox-pill"><input type="checkbox" value="Veteran"> Veteran</label>
+        </div>
+      </div>
       <select id="sortOrder">
         <option value="recent">Most recent</option>
         <option value="alpha">Alphabetical (A–Z)</option>
       </select>
     </div>
+  </div>
+</div>
   </div>
 </div>

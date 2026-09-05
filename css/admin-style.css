@@ -120,3 +120,183 @@
   .btn-reject { background: var(--card-bg); color: var(--oxblood); border-color: var(--oxblood); }
 
   .empty { font-style: italic; color: var(--ink-soft); padding: 30px 0; }
+
+  /* ============ ADMIN DASHBOARD REWORK ============ */
+
+  .admin-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--line);
+    margin-bottom: 20px;
+    overflow-x: auto;
+  }
+  .admin-tabs button {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 9px 14px;
+    background: transparent;
+    border: 1px solid transparent;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    color: var(--ink-soft);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .admin-tabs button.active {
+    background: var(--card-bg);
+    border-color: var(--line);
+    color: var(--ink);
+  }
+
+  .tab-panel input[type="text"] {
+    width: 100%;
+    padding: 9px 10px;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    font-size: 14px;
+    background: #fff;
+    margin-bottom: 14px;
+    box-sizing: border-box;
+    font-family: inherit;
+  }
+
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat-card {
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 14px 16px;
+  }
+  .stat-card p.stat-label {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-soft);
+    margin: 0 0 4px;
+  }
+  .stat-card p.stat-value {
+    font-family: 'Spectral', serif;
+    font-weight: 600;
+    font-size: 24px;
+    margin: 0;
+  }
+
+  .flag-banner {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    color: var(--oxblood);
+    background: rgba(107, 39, 55, 0.08);
+    border: 1px solid rgba(107, 39, 55, 0.25);
+    border-radius: 4px;
+    padding: 10px 12px;
+    margin: 0;
+  }
+
+  .listing-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 8px;
+  }
+  .listing-row-info { font-size: 13px; }
+  .listing-row-info .status-tag {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10px;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+    margin-left: 8px;
+  }
+  .status-tag.approved { background: rgba(44, 74, 59, 0.15); color: var(--forest); }
+  .status-tag.pending { background: rgba(201, 154, 63, 0.2); color: #8a6a1f; }
+  .listing-row-actions { display: flex; gap: 6px; flex-shrink: 0; }
+  .listing-row-actions button {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    border: 1px solid var(--ink);
+    background: transparent;
+    color: var(--ink);
+  }
+  .listing-row-actions button.remove-btn { border-color: var(--oxblood); color: var(--oxblood); }
+
+  .edit-listing-card {
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 20px;
+    margin-bottom: 8px;
+  }
+  .edit-listing-card .field { margin-bottom: 12px; }
+  .edit-listing-card .field label {
+    display: block;
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11px;
+    color: var(--ink-soft);
+    margin-bottom: 4px;
+  }
+  .edit-listing-card .field input,
+  .edit-listing-card .field select,
+  .edit-listing-card .field textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--ink);
+    border-radius: 4px;
+    font-size: 13px;
+    background: #fff;
+    box-sizing: border-box;
+    font-family: inherit;
+  }
+  .edit-listing-card .field textarea { min-height: 60px; resize: vertical; }
+
+  .report-card {
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 16px 18px;
+    margin-bottom: 10px;
+  }
+  .report-card .report-meta {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--oxblood);
+    margin: 0 0 6px;
+  }
+  .report-card .report-message { font-size: 13.5px; margin: 0 0 10px; white-space: pre-wrap; }
+  .report-card .report-contact { font-size: 12px; color: var(--ink-soft); margin: 0 0 10px; }
+  .report-card .actions { margin-top: 0; }
+
+  .settings-row {
+    background: var(--card-bg);
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .settings-label { font-family: 'Spectral', serif; font-weight: 600; margin: 0 0 3px; }
+  .settings-sub { font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink-soft); margin: 0; }
+  #maintenanceToggle {
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 12px;
+    padding: 8px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    border: 1px solid var(--ink);
+  }

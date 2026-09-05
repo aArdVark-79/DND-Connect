@@ -5,27 +5,56 @@ import {
 } from '../state/appState.js';
 import { buildAllyActionEl } from './allyActions.js';
 
+// ============ WAX SEAL BADGES ============
+// Small icon "seals" replace the old plain-text tags on each card.
+// Colors: system = oxblood, format = forest, experience = gold, location = oxblood.
+const SEAL_ICONS = {
+  system: '<path d="M4 20h16M6 20V9l6-5 6 5v11M9 20v-6h6v6"/>',
+  online: '<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/>',
+  inPerson: '<path d="M4 21v-4a4 4 0 014-4h8a4 4 0 014 4v4M8 9a4 4 0 108 0 4 4 0 00-8 0z"/>',
+  formatFallback: '<circle cx="12" cy="12" r="8"/>',
+  expNew: '<path d="M6 17l6-5 6 5M4 19h16"/>',
+  expSome: '<path d="M4 19h16M6 19l6-4 6 4M8 15l4-3 4 3"/>',
+  expVeteran: '<path d="M6 15l3-9 3 9M18 15l-3-9-3 9M4 19h16"/>',
+  location: '<path d="M12 21s-7-5.5-7-11a7 7 0 0114 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/>',
+};
+
+function seal(colorClass, iconInner, label) {
+  const strokeColor = colorClass === 'c-gold' ? 'var(--ink)' : 'var(--parchment)';
+  return `<div class="seal ${colorClass}"><svg viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="2">${iconInner}</svg><span class="tip">${escapeHtml(label)}</span></div>`;
+}
+function systemSeals(systems) {
+  return systems.map(s => seal('c-oxblood', SEAL_ICONS.system, s)).join('');
+}
+function formatSeals(formats) {
+  return formats.map(f => {
+    const icon = f === 'Online' ? SEAL_ICONS.online : f === 'In-person' ? SEAL_ICONS.inPerson : SEAL_ICONS.formatFallback;
+    return seal('c-forest', icon, f);
+  }).join('');
+}
+function expSeal(exp) {
+  const icon = exp === 'Veteran' ? SEAL_ICONS.expVeteran : exp === 'Some experience' ? SEAL_ICONS.expSome : SEAL_ICONS.expNew;
+  return seal('c-gold', icon, exp);
+}
+function locationSeal(location) {
+  return location ? seal('c-oxblood', SEAL_ICONS.location, location) : '';
+}
+
 // ============ BOARD: filters, sorting, rendering ============
 const grid = document.getElementById('grid');
 const countLine = document.getElementById('countLine');
 const emptyMsg = document.getElementById('emptyMsg');
 const roleToggle = document.getElementById('roleToggle');
-const locationFilter = document.getElementById('locationFilter');
-const systemFilterGroup = document.getElementById('systemFilterGroup');
-const formatFilterGroup = document.getElementById('formatFilterGroup');
-const expFilterGroup = document.getElementById('expFilterGroup');
+const systemFilter = document.getElementById('systemFilter');
+const formatFilter = document.getElementById('formatFilter');
+const expFilter = document.getElementById('expFilter');
 const sortOrder = document.getElementById('sortOrder');
-
-function checkedValues(group) {
-  return [...group.querySelectorAll('input[type="checkbox"]:checked')].map(c => c.value);
-}
 
 export async function loadListings() {
   const { data, error } = await supabase
     .from('listings')
     .select('id, role, name, systems, formats, location, exp, schedule, bio, created_at')
     .eq('status', 'approved')
-    .eq('active', true)
     .order('created_at', { ascending: false });
 
   if (error) {
@@ -39,28 +68,24 @@ export async function loadListings() {
 export function render() {
   const listings = getListings();
   const activeRole = getActiveRole();
-  const sysChosen = checkedValues(systemFilterGroup);
-  const fmtChosen = checkedValues(formatFilterGroup);
-  const expChosen = checkedValues(expFilterGroup);
-  const locationQuery = locationFilter.value.trim().toLowerCase();
+  const sys = systemFilter.value;
+  const fmt = formatFilter.value;
+  const exp = expFilter.value;
 
   let filtered = listings.filter(l => {
     if (activeRole !== 'all' && l.role !== activeRole) return false;
 
     const systemsArr = l.systems || [];
-    if (sysChosen.length) {
-      const matchesOther = sysChosen.includes('Other') && systemsArr.some(s => !KNOWN_SYSTEMS.includes(s));
-      const matchesKnown = systemsArr.some(s => sysChosen.includes(s));
-      if (!matchesOther && !matchesKnown) return false;
+    if (sys === 'Other') {
+      if (systemsArr.every(s => KNOWN_SYSTEMS.includes(s))) return false;
+    } else if (sys && !systemsArr.includes(sys)) {
+      return false;
     }
 
     const formatsArr = l.formats || [];
-    if (fmtChosen.length && !formatsArr.some(f => fmtChosen.includes(f))) return false;
+    if (fmt && !formatsArr.includes(fmt)) return false;
 
-    if (expChosen.length && !expChosen.includes(l.exp)) return false;
-
-    if (locationQuery && !(l.location || '').toLowerCase().includes(locationQuery)) return false;
-
+    if (exp && l.exp !== exp) return false;
     return true;
   });
 
@@ -75,24 +100,26 @@ export function render() {
   emptyMsg.style.display = filtered.length ? 'none' : 'block';
 
   filtered.forEach(l => {
-    const systemsText = (l.systems || []).join(', ') || 'Any system';
-    const formatsText = (l.formats || []).join(' / ') || 'Format flexible';
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
       <p class="card-role ${l.role === 'player' ? 'player' : ''}">${l.role === 'dm' ? 'Game Master' : 'Player'}</p>
       <p class="card-name">${escapeHtml(l.name)}</p>
-      <p class="card-line"><strong>${escapeHtml(systemsText)}</strong> · ${escapeHtml(formatsText)}</p>
-      <p class="card-line">${escapeHtml(l.exp)} · ${escapeHtml(l.schedule || 'Schedule flexible')}</p>
-      ${l.location ? `<p class="card-line">📍 ${escapeHtml(l.location)}</p>` : ''}
-      <div class="tags">
-        ${(l.systems || []).map(s => `<span class="tag">${escapeHtml(s)}</span>`).join('')}
-        ${(l.formats || []).map(f => `<span class="tag">${escapeHtml(f)}</span>`).join('')}
-        <span class="tag">${escapeHtml(l.exp)}</span>
+      <div class="seals-row">
+        ${systemSeals(l.systems || [])}
+        ${formatSeals(l.formats || [])}
+        ${expSeal(l.exp)}
+        ${locationSeal(l.location)}
       </div>
       ${l.bio ? `<p class="card-bio">${escapeHtml(l.bio)}</p>` : ''}
     `;
-    card.appendChild(buildAllyActionEl(l.id));
+    const banner = document.createElement('div');
+    banner.className = 'ally-banner';
+    const scheduleSpan = document.createElement('span');
+    scheduleSpan.textContent = l.schedule || 'Schedule flexible';
+    banner.appendChild(scheduleSpan);
+    banner.appendChild(buildAllyActionEl(l.id));
+    card.appendChild(banner);
     grid.appendChild(card);
   });
 }
@@ -105,11 +132,7 @@ roleToggle.addEventListener('click', (e) => {
   render();
 });
 
-[systemFilterGroup, formatFilterGroup, expFilterGroup].forEach(group => {
-  group.addEventListener('change', render);
-});
-locationFilter.addEventListener('input', render);
-sortOrder.addEventListener('change', render);
+[systemFilter, formatFilter, expFilter, sortOrder].forEach(el => el.addEventListener('change', render));
 
 const filterToggleBtn = document.getElementById('filterToggleBtn');
 const filtersPanel = document.getElementById('filtersPanel');

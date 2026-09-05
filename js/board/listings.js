@@ -1,5 +1,8 @@
-
 // Board: loading listings, filtering, sorting, and rendering the cards.
+// Following this file's own project convention: importing this module runs
+// its DOM-ref grabbing and listener wiring immediately (no separate init
+// call needed) — matching allyActions.js and app.js's own comment about
+// import order doubling as wiring order.
 import { supabase } from '../config/supabase.js';
 import { escapeHtml } from '../utils/html.js';
 import {
@@ -7,8 +10,16 @@ import {
 } from '../state/appState.js';
 import { buildAllyActionEl } from './allyActions.js';
 
-let grid, countLine, emptyMsg, roleToggle, systemFilter, formatFilter, expFilter, sortOrder;
-let filterToggleBtn, filtersPanel;
+const grid = document.getElementById('grid');
+const countLine = document.getElementById('countLine');
+const emptyMsg = document.getElementById('emptyMsg');
+const roleToggle = document.getElementById('roleToggle');
+const systemFilter = document.getElementById('systemFilter');
+const formatFilter = document.getElementById('formatFilter');
+const expFilter = document.getElementById('expFilter');
+const sortOrder = document.getElementById('sortOrder');
+const filterToggleBtn = document.getElementById('filterToggleBtn');
+const filtersPanel = document.getElementById('filtersPanel');
 
 export async function loadListings() {
   const { data, error } = await supabase
@@ -119,33 +130,20 @@ export function render() {
   });
 }
 
-export function initBoard() {
-  grid = document.getElementById('grid');
-  countLine = document.getElementById('countLine');
-  emptyMsg = document.getElementById('emptyMsg');
-  roleToggle = document.getElementById('roleToggle');
-  systemFilter = document.getElementById('systemFilter');
-  formatFilter = document.getElementById('formatFilter');
-  expFilter = document.getElementById('expFilter');
-  sortOrder = document.getElementById('sortOrder');
-  filterToggleBtn = document.getElementById('filterToggleBtn');
-  filtersPanel = document.getElementById('filtersPanel');
+setBoardRenderer(render);
 
-  setBoardRenderer(render);
+roleToggle.addEventListener('click', (e) => {
+  if (e.target.tagName !== 'BUTTON') return;
+  [...roleToggle.children].forEach(b => b.classList.remove('active'));
+  e.target.classList.add('active');
+  setActiveRole(e.target.dataset.role);
+  render();
+});
 
-  roleToggle.addEventListener('click', (e) => {
-    if (e.target.tagName !== 'BUTTON') return;
-    [...roleToggle.children].forEach(b => b.classList.remove('active'));
-    e.target.classList.add('active');
-    setActiveRole(e.target.dataset.role);
-    render();
-  });
+[systemFilter, formatFilter, expFilter, sortOrder].forEach(el => el.addEventListener('change', render));
 
-  [systemFilter, formatFilter, expFilter, sortOrder].forEach(el => el.addEventListener('change', render));
-
-  filterToggleBtn.addEventListener('click', () => {
-    const isOpen = filtersPanel.classList.toggle('open');
-    filterToggleBtn.classList.toggle('active', isOpen);
-    filterToggleBtn.textContent = isOpen ? 'Filters ▴' : 'Filters ▾';
-  });
-}
+filterToggleBtn.addEventListener('click', () => {
+  const isOpen = filtersPanel.classList.toggle('open');
+  filterToggleBtn.classList.toggle('active', isOpen);
+  filterToggleBtn.textContent = isOpen ? 'Filters ▴' : 'Filters ▾';
+});

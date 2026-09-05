@@ -1,54 +1,16 @@
+// Board: loading listings, filtering, sorting, and rendering the cards.
+// Filters are handled here too (not split into a separate filters.js) --
+// render() reads every filter control's value directly, and every filter
+// control's only job is to call render() on change, so splitting them
+// would mean importing render() back into a "filters" module for no real
+// separation of concerns. See refactor notes for the full reasoning.
 import { supabase } from '../config/supabase.js';
 import { escapeHtml } from '../utils/html.js';
-import {
-  KNOWN_SYSTEMS, getListings, setListings, getActiveRole, setActiveRole, setBoardRenderer,
-} from '../state/appState.js';
+import { state, KNOWN_SYSTEMS, setBoardRenderer } from '../state/appState.js';
 import { buildAllyActionEl } from './allyActions.js';
 
-// ============ WAX SEAL BADGES ============
-// Small icon "seals" replace the old plain-text tags on each card.
-// Colors: system = oxblood, format = forest, experience = gold, location = oxblood.
-const SEAL_ICONS = {
-  system: '<path d="M4 20h16M6 20V9l6-5 6 5v11M9 20v-6h6v6"/>',
-  online: '<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/>',
-  inPerson: '<path d="M4 21v-4a4 4 0 014-4h8a4 4 0 014 4v4M8 9a4 4 0 108 0 4 4 0 00-8 0z"/>',
-  formatFallback: '<circle cx="12" cy="12" r="8"/>',
-  expNew: '<path d="M6 17l6-5 6 5M4 19h16"/>',
-  expSome: '<path d="M4 19h16M6 19l6-4 6 4M8 15l4-3 4 3"/>',
-  expVeteran: '<path d="M6 15l3-9 3 9M18 15l-3-9-3 9M4 19h16"/>',
-  location: '<path d="M12 21s-7-5.5-7-11a7 7 0 0114 0c0 5.5-7 11-7 11z"/><circle cx="12" cy="10" r="2.3"/>',
-};
-
-function seal(colorClass, iconInner, label) {
-  const strokeColor = colorClass === 'c-gold' ? 'var(--ink)' : 'var(--parchment)';
-  return `<div class="seal ${colorClass}"><svg viewBox="0 0 24 24" fill="none" stroke="${strokeColor}" stroke-width="2">${iconInner}</svg><span class="tip">${escapeHtml(label)}</span></div>`;
-}
-function systemSeals(systems) {
-  return systems.map(s => seal('c-oxblood', SEAL_ICONS.system, s)).join('');
-}
-function formatSeals(formats) {
-  return formats.map(f => {
-    const icon = f === 'Online' ? SEAL_ICONS.online : f === 'In-person' ? SEAL_ICONS.inPerson : SEAL_ICONS.formatFallback;
-    return seal('c-forest', icon, f);
-  }).join('');
-}
-function expSeal(exp) {
-  const icon = exp === 'Veteran' ? SEAL_ICONS.expVeteran : exp === 'Some experience' ? SEAL_ICONS.expSome : SEAL_ICONS.expNew;
-  return seal('c-gold', icon, exp);
-}
-function locationSeal(location) {
-  return location ? seal('c-oxblood', SEAL_ICONS.location, location) : '';
-}
-
-// ============ BOARD: filters, sorting, rendering ============
-const grid = document.getElementById('grid');
-const countLine = document.getElementById('countLine');
-const emptyMsg = document.getElementById('emptyMsg');
-const roleToggle = document.getElementById('roleToggle');
-const systemFilter = document.getElementById('systemFilter');
-const formatFilter = document.getElementById('formatFilter');
-const expFilter = document.getElementById('expFilter');
-const sortOrder = document.getElementById('sortOrder');
+let grid, countLine, emptyMsg, roleToggle, systemFilter, formatFilter, expFilter, sortOrder;
+let filterToggleBtn, filtersPanel;
 
 export async function loadListings() {
   const { data, error } = await supabase
@@ -61,19 +23,17 @@ export async function loadListings() {
     console.error('Could not load listings:', error);
     return;
   }
-  setListings(data);
+  state.listings = data;
   render();
 }
 
 export function render() {
-  const listings = getListings();
-  const activeRole = getActiveRole();
   const sys = systemFilter.value;
   const fmt = formatFilter.value;
   const exp = expFilter.value;
 
-  let filtered = listings.filter(l => {
-    if (activeRole !== 'all' && l.role !== activeRole) return false;
+  let filtered = state.listings.filter(l => {
+    if (state.activeRole !== 'all' && l.role !== state.activeRole) return false;
 
     const systemsArr = l.systems || [];
     if (sys === 'Other') {
@@ -100,46 +60,55 @@ export function render() {
   emptyMsg.style.display = filtered.length ? 'none' : 'block';
 
   filtered.forEach(l => {
+    const systemsText = (l.systems || []).join(', ') || 'Any system';
+    const formatsText = (l.formats || []).join(' / ') || 'Format flexible';
     const card = document.createElement('div');
     card.className = 'card';
     card.innerHTML = `
       <p class="card-role ${l.role === 'player' ? 'player' : ''}">${l.role === 'dm' ? 'Game Master' : 'Player'}</p>
       <p class="card-name">${escapeHtml(l.name)}</p>
-      <div class="seals-row">
-        ${systemSeals(l.systems || [])}
-        ${formatSeals(l.formats || [])}
-        ${expSeal(l.exp)}
-        ${locationSeal(l.location)}
+      <p class="card-line"><strong>${escapeHtml(systemsText)}</strong> · ${escapeHtml(formatsText)}</p>
+      <p class="card-line">${escapeHtml(l.exp)} · ${escapeHtml(l.schedule || 'Schedule flexible')}</p>
+      ${l.location ? `<p class="card-line">📍 ${escapeHtml(l.location)}</p>` : ''}
+      <div class="tags">
+        ${(l.systems || []).map(s => `<span class="tag">${escapeHtml(s)}</span>`).join('')}
+        ${(l.formats || []).map(f => `<span class="tag">${escapeHtml(f)}</span>`).join('')}
+        <span class="tag">${escapeHtml(l.exp)}</span>
       </div>
       ${l.bio ? `<p class="card-bio">${escapeHtml(l.bio)}</p>` : ''}
     `;
-    const banner = document.createElement('div');
-    banner.className = 'ally-banner';
-    const scheduleSpan = document.createElement('span');
-    scheduleSpan.textContent = l.schedule || 'Schedule flexible';
-    banner.appendChild(scheduleSpan);
-    banner.appendChild(buildAllyActionEl(l.id));
-    card.appendChild(banner);
+    card.appendChild(buildAllyActionEl(l.id));
     grid.appendChild(card);
   });
 }
 
-roleToggle.addEventListener('click', (e) => {
-  if (e.target.tagName !== 'BUTTON') return;
-  [...roleToggle.children].forEach(b => b.classList.remove('active'));
-  e.target.classList.add('active');
-  setActiveRole(e.target.dataset.role);
-  render();
-});
+export function initBoard() {
+  grid = document.getElementById('grid');
+  countLine = document.getElementById('countLine');
+  emptyMsg = document.getElementById('emptyMsg');
+  roleToggle = document.getElementById('roleToggle');
+  systemFilter = document.getElementById('systemFilter');
+  formatFilter = document.getElementById('formatFilter');
+  expFilter = document.getElementById('expFilter');
+  sortOrder = document.getElementById('sortOrder');
+  filterToggleBtn = document.getElementById('filterToggleBtn');
+  filtersPanel = document.getElementById('filtersPanel');
 
-[systemFilter, formatFilter, expFilter, sortOrder].forEach(el => el.addEventListener('change', render));
+  setBoardRenderer(render);
 
-const filterToggleBtn = document.getElementById('filterToggleBtn');
-const filtersPanel = document.getElementById('filtersPanel');
-filterToggleBtn.addEventListener('click', () => {
-  const isOpen = filtersPanel.classList.toggle('open');
-  filterToggleBtn.classList.toggle('active', isOpen);
-  filterToggleBtn.textContent = isOpen ? 'Filters ▴' : 'Filters ▾';
-});
+  roleToggle.addEventListener('click', (e) => {
+    if (e.target.tagName !== 'BUTTON') return;
+    [...roleToggle.children].forEach(b => b.classList.remove('active'));
+    e.target.classList.add('active');
+    state.activeRole = e.target.dataset.role;
+    render();
+  });
 
-setBoardRenderer(render);
+  [systemFilter, formatFilter, expFilter, sortOrder].forEach(el => el.addEventListener('change', render));
+
+  filterToggleBtn.addEventListener('click', () => {
+    const isOpen = filtersPanel.classList.toggle('open');
+    filterToggleBtn.classList.toggle('active', isOpen);
+    filterToggleBtn.textContent = isOpen ? 'Filters ▴' : 'Filters ▾';
+  });
+}

@@ -782,3 +782,78 @@
   @media (max-width: 640px) {
     .help-fab { bottom: 14px; right: 14px; padding: 10px 14px; }
   }
+
+  /* ============ WAX SEAL BADGES (replaces old .tags/.tag) ============ */
+  .card { transition: box-shadow 0.2s ease; }
+  .card:hover { box-shadow: 0 4px 10px rgba(42,36,26,0.12); }
+
+  .seals-row {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin: 10px 0;
+  }
+  .seal {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.2), inset 0 1px 1px rgba(255,255,255,0.25);
+    z-index: 1;
+  }
+  .seal:hover { z-index: 50; }
+  .seal svg { width: 14px; height: 14px; }
+  .seal.c-oxblood { background: var(--oxblood); }
+  .seal.c-oxblood svg { stroke: var(--parchment); }
+  .seal.c-forest { background: var(--forest); }
+  .seal.c-forest svg { stroke: var(--parchment); }
+  .seal.c-gold { background: #c99a3f; }
+  .seal.c-gold svg { stroke: var(--ink); }
+
+  .seal .tip {
+    position: absolute;
+    bottom: 38px;
+    left: 50%;
+    transform: translateX(-50%) translateY(4px);
+    background: var(--ink);
+    color: var(--parchment);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 11.5px;
+    padding: 6px 12px;
+    border-radius: 999px;
+    white-space: nowrap;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  .seal .tip::after {
+    content: '';
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border: 6px solid transparent;
+    border-top-color: var(--ink);
+  }
+  .seal:hover .tip { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Bio is hidden until the card itself is hovered — the button below it
+     never moves, this space just opens up above it. */
+  .card-expand {
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease, opacity 0.2s ease;
+  }
+  .card:hover .card-expand {
+    max-height: 200px;
+    opacity: 1;
+  }
+  .card-expand .card-bio {
+    margin: 0 0 10px;
+    padding-top: 10px;
+    border-top: 1px solid rgba(42,36,26,0.15);
+  }

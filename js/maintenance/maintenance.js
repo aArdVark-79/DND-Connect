@@ -1,5 +1,5 @@
 import { supabase } from '../config/supabase.js';
-import { loadListings } from '../board/listings.js';
+import { initBoard, loadListings } from '../board/listings.js';
 import { subscribeToListingChanges } from '../features/realtime.js';
 
 // ============ MAINTENANCE MODE CHECK ============

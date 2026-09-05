@@ -9,7 +9,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Review queue</h1>
+  <h1>Admin</h1>
   <p class="sub">Private admin page — only you can sign in here</p>
   <div id="loginBox">
     <label>Email</label>
@@ -19,16 +19,45 @@
     <button id="loginBtn">Sign in</button>
     <p id="loginError">Incorrect email or password.</p>
   </div>
+
   <div id="adminPanel">
     <button class="signout" id="signOutBtn">Sign out</button>
-    <div style="background: var(--card-bg); border: 1px solid var(--line); border-radius: 6px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; justify-content: space-between;">
-      <div>
-        <p style="font-family: 'Spectral', serif; font-weight: 600; margin: 0 0 3px;">Site status</p>
-        <p id="statusText" style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; color: var(--ink-soft); margin: 0;">Checking...</p>
-      </div>
-      <button id="maintenanceToggle" style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; padding: 8px 16px; border-radius: 4px; cursor: pointer; border: 1px solid var(--ink);">...</button>
+
+    <div class="admin-tabs" id="adminTabs">
+      <button type="button" data-tab="overview" class="active">Overview</button>
+      <button type="button" data-tab="pending">Pending</button>
+      <button type="button" data-tab="all">All listings</button>
+      <button type="button" data-tab="reports">Reports</button>
+      <button type="button" data-tab="settings">Settings</button>
     </div>
-    <div id="pendingList"></div>
+
+    <div class="tab-panel" id="tab-overview">
+      <div class="stats-grid" id="statsGrid"></div>
+      <p id="overviewFlag" class="flag-banner" style="display:none;"></p>
+    </div>
+
+    <div class="tab-panel" id="tab-pending" style="display:none;">
+      <div id="pendingList"></div>
+    </div>
+
+    <div class="tab-panel" id="tab-all" style="display:none;">
+      <input type="text" id="allListingsSearch" placeholder="Search by name, ID, or system…">
+      <div id="allListingsList"></div>
+    </div>
+
+    <div class="tab-panel" id="tab-reports" style="display:none;">
+      <div id="reportsList"></div>
+    </div>
+
+    <div class="tab-panel" id="tab-settings" style="display:none;">
+      <div class="settings-row">
+        <div>
+          <p class="settings-label">Site status</p>
+          <p id="statusText" class="settings-sub">Checking...</p>
+        </div>
+        <button id="maintenanceToggle">...</button>
+      </div>
+    </div>
   </div>
 </div>
 <script type="module" src="js/admin-script.js"></script>

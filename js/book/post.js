@@ -15,6 +15,7 @@ export function renderPostTab() {
 
 function renderPostAuthSetup() {
   showInterstitial(`
+    <p class="page-sub" style="text-align:center; margin-bottom:18px;"><strong>Keep connections private and genuine.</strong> When you express interest, we verify that you're the person who owns this listing. Your ID and PIN aren't shared with the other person.</p>
     <h2>Secure your ID</h2>
     <p class="page-sub" style="text-align:center;">Choose how you'll verify it's really you later, in case someone else guesses your ID.</p>
     <div class="checkbox-group" style="margin-bottom:14px; justify-content:center;">
@@ -213,8 +214,8 @@ function bindPostForm(role, prefix, container) {
     const label = role === 'dm' ? 'Game Master' : 'Player';
     container.innerHTML = `
       <span class="page-role-flag"><span class="dot"></span>${label}</span>
-      <h2>Signed and sent</h2>
-      <p class="page-sub">Pending review — usually within a day or two. Check "My submissions" with ID ${escapeHtml(book.code)} anytime.</p>
+      <h2>Your Quest is on the board</h2>
+      <p class="page-sub">May the right adventurers find you — pending review, usually within a day or two. Check "My submissions" with ID ${escapeHtml(book.code)} anytime.</p>
     `;
   });
 }
@@ -227,4 +228,5 @@ function renderPostDetails() {
   bindPostForm('dm', 'gf', pageRight);
 }
 
+registerTabRenderer('post', renderPostTab);
 registerTabRenderer('post', renderPostTab);

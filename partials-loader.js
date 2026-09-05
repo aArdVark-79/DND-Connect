@@ -19,5 +19,5 @@ async function loadPartials() {
 }
 
 loadPartials().then(() => {
-  import('./js/script.js');
+  import('./js/app.js');
 });

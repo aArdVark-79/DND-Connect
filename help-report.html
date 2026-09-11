@@ -1,0 +1,37 @@
+<!-- Quiet, always-there way to ask a question or flag a listing/person -->
+<button type="button" class="help-fab" id="helpFabBtn">Need help?</button>
+
+<div class="modal-overlay" id="helpReportOverlay">
+  <div class="modal">
+    <h2>Help &amp; report</h2>
+    <p class="note">Something wrong, or just a question? Let us know below.</p>
+
+    <div class="role-toggle" id="reportTypeToggle" style="margin-bottom:14px;">
+      <button type="button" data-type="listing" class="active">Report a listing</button>
+      <button type="button" data-type="general">General question</button>
+    </div>
+
+    <div class="field" id="reportListingIdWrap">
+      <label>Listing ID (if you have it)</label>
+      <input type="text" id="reportListingId" placeholder="Optional — leave blank if unsure">
+    </div>
+
+    <div class="field">
+      <label id="reportMessageLabel">What happened?</label>
+      <textarea id="reportMessage" placeholder="Tell us as much as you're comfortable sharing."></textarea>
+    </div>
+
+    <div class="field">
+      <label>Your contact (optional)</label>
+      <input type="text" id="reportContact" placeholder="Only if you'd like a reply">
+      <p class="hint">Only seen by site admins, never anyone else.</p>
+    </div>
+
+    <p id="reportMsgFeedback" class="empty" style="display:none; padding:6px 0; font-size:13px;"></p>
+
+    <div class="modal-actions">
+      <button type="button" class="btn-cancel" id="helpReportCancel">Cancel</button>
+      <button type="button" class="btn-submit" id="helpReportSubmit">Send</button>
+    </div>
+  </div>
+</div>

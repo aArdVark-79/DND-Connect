@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin — The Adventurers' Board</title>
+<link href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;600&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/admin-style.css">
+</head>
+<body>
+<div class="wrap">
+  <h1>Admin</h1>
+  <p class="sub">Private admin page — only you can sign in here</p>
+  <div id="loginBox">
+    <label>Email</label>
+    <input type="email" id="loginEmail">
+    <label>Password</label>
+    <input type="password" id="loginPassword">
+    <button id="loginBtn">Sign in</button>
+    <p id="loginError">Incorrect email or password.</p>
+  </div>
+
+  <div id="adminPanel">
+    <button class="signout" id="signOutBtn">Sign out</button>
+
+    <div class="admin-tabs" id="adminTabs">
+      <button type="button" data-tab="overview" class="active">Overview</button>
+      <button type="button" data-tab="pending">Pending</button>
+      <button type="button" data-tab="all">All listings</button>
+      <button type="button" data-tab="reports">Reports</button>
+      <button type="button" data-tab="settings">Settings</button>
+    </div>
+
+    <div class="tab-panel" id="tab-overview">
+      <div class="stats-grid" id="statsGrid"></div>
+      <p id="overviewFlag" class="flag-banner" style="display:none;"></p>
+    </div>
+
+    <div class="tab-panel" id="tab-pending" style="display:none;">
+      <div id="pendingList"></div>
+    </div>
+
+    <div class="tab-panel" id="tab-all" style="display:none;">
+      <input type="text" id="allListingsSearch" placeholder="Search by name, ID, or system…">
+      <div id="allListingsList"></div>
+    </div>
+
+    <div class="tab-panel" id="tab-reports" style="display:none;">
+      <div id="reportsList"></div>
+    </div>
+
+    <div class="tab-panel" id="tab-settings" style="display:none;">
+      <div class="settings-row">
+        <div>
+          <p class="settings-label">Site status</p>
+          <p id="statusText" class="settings-sub">Checking...</p>
+        </div>
+        <button id="maintenanceToggle">...</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script type="module" src="js/admin-script.js"></script>
+</body>
+</html>
